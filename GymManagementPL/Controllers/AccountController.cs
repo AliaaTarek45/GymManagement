@@ -1,70 +1,75 @@
 ﻿using GymManagementBLL.Services.Interfaces;
 using GymManagementBLL.ViewModels.AccountViewModels;
 using GymManagementDAL.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GymManagementPL.Controllers
 {
-	public class AccountController : Controller
+	public class AccountController(
+            SignInManager<ApplicationUser> signInManager,
+            UserManager<ApplicationUser> userManager,
+            ILogger<AccountController> logger) : Controller
 	{
-		private readonly IAccountService _accountService;
-		private readonly SignInManager<ApplicationUser> _signInManager;
+        private readonly SignInManager<ApplicationUser> _signInManager = signInManager;
+        private readonly UserManager<ApplicationUser> _userManager = userManager;
+        private readonly ILogger<AccountController> _logger = logger;
 
-		public AccountController(IAccountService accountService, SignInManager<ApplicationUser> signInManager)
-		{
-			_accountService = accountService;
-			_signInManager = signInManager;
-		}
-
-		#region Login
-		public ActionResult Login()
+        #region Login
+        public IActionResult Login()
 		{
 			return View();
 		}
+        [HttpPost]
+        public async Task<IActionResult> Login(LoginViewModel model , CancellationToken ct = default)
+        {
+            if (!ModelState.IsValid) return View(model);
 
-		[HttpPost]
-		public ActionResult Login(LoginViewModel model)
-		{
-			if (!ModelState.IsValid) return View(model);
+            var user = await _userManager.FindByEmailAsync(model.Email);
+            if (user is null || string.IsNullOrEmpty(user.UserName))
+            {
+                ModelState.AddModelError(string.Empty, "Invalid email or password.");
+                return View(model);
+            }
 
-			var User = _accountService.ValidateUser(model);
-			if (User is null)
-			{
-				ModelState.AddModelError("InvalidLogin", "Invalid Email or Password");
-				return View(model);
-			}
+            var result = await _signInManager.PasswordSignInAsync(
+                user.UserName, model.Password, model.RememberMe, lockoutOnFailure: true);
 
-			var Result = _signInManager.PasswordSignInAsync(User,
-				model.Password,
-				model.RememberMe,
-				false).Result;
+            if (result.Succeeded)
+            {
+                _logger.LogInformation("User {UserId} signed in.", user.Id);
+                return RedirectToAction(nameof(HomeController.Index), "Home");
+            }
+            if (result.IsLockedOut)
+            {
+                _logger.LogWarning("User {UserId} is locked out.", user.Id);
+                ModelState.AddModelError(string.Empty, "This account is temporarily locked. Try again later.");
+            }
+            else if (result.IsNotAllowed)
+            {
+                ModelState.AddModelError(string.Empty, "Sign-in is not allowed for this account.");
+            }
+            else
+            {
+                ModelState.AddModelError(string.Empty, "Invalid email or password.");
+            }
+            return View(model);
+        }
 
-			if (Result.IsNotAllowed)
-				ModelState.AddModelError("InvalidLogin", "Your Account Is Not Allowed");
-			if (Result.IsLockedOut)
-				ModelState.AddModelError("InvalidLogin", "Your Account Is Locked Out ");
-			if (Result.Succeeded)
-				return RedirectToAction(nameof(HomeController.Index), "Home");
-
-			ModelState.AddModelError("InvalidLogin", "Login Failed");
-			return View(model);
-		}
 		#endregion
 
 		#region Sign Out
 
-		[HttpPost]
-		public ActionResult Logout()
-		{
-			_signInManager.SignOutAsync().GetAwaiter().GetResult();
-			return RedirectToAction(nameof(Login));
-		}
-		#endregion
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> Logout()
+        {
+            await _signInManager.SignOutAsync();
+            return RedirectToAction(nameof(Login));
+        }
+        #endregion
+        public IActionResult AccessDenied() => View();
 
-		public ActionResult AccessDenied()
-		{
-			return View();
-		}
-	}
+    }
 }

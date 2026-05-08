@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using GymManagementBLL.Common;
 using GymManagementBLL.Services.Interfaces;
 using GymManagementBLL.ViewModels.SessionViewModels;
 using GymManagementDAL.Entities;
@@ -6,148 +7,129 @@ using GymManagementDAL.Repositories.Interfaces;
 
 namespace GymManagementBLL.Services.Classes
 {
-	public class SessionService : ISessionService
+	public class SessionService(IUnitOfWork unitOfWork, IMapper mapper) : ISessionService
 	{
-		private readonly IUnitOfWork _unitOfWork;
-		private readonly IMapper _mapper;
+		private readonly IUnitOfWork _unitOfWork = unitOfWork;
+		private readonly IMapper _mapper = mapper;
 
-		public SessionService(IUnitOfWork unitOfWork, IMapper mapper)
-		{
-			_unitOfWork = unitOfWork;
-			_mapper = mapper;
-		}
-		public IEnumerable<SessionViewModel> GetAllSessions()
-		{
-			var sessions = _unitOfWork.SessionRepository.GetAll().OrderByDescending(X => X.StartDate);
+        public async Task<IReadOnlyList<SessionViewModel>?> GetAllSessionsAsync(CancellationToken ct = default)
+        {
+			var sessions = (await _unitOfWork.SessionRepository.GetAllAsync(ct: ct)).OrderByDescending(X => X.StartDate); ;
 
-			if (sessions == null || !sessions.Any()) return Enumerable.Empty<SessionViewModel>();
+			if (sessions?.Any() ?? true) return null;
 
-			var MappedSessions = _mapper.Map<IEnumerable<SessionEntity>, IEnumerable<SessionViewModel>>(sessions);
+			var MappedSessions = _mapper.Map<IReadOnlyList<SessionViewModel>>(sessions);
 
 			foreach (var session in MappedSessions)
 			{
-				session.AvailableSlots = session.Capacity - _unitOfWork.SessionRepository.GetCountOfBookedSlots(session.Id);
+                session.AvailableSlots = session.Capacity - await _unitOfWork.SessionRepository.GetCountOfBookedSlotsAsync(session.Id, ct);
 			}
 			return MappedSessions;
 
 		}
-		public SessionViewModel? GetSessionById(int sessionId)
-		{
-			var session = _unitOfWork.SessionRepository.GetSessionWithTrainerAndCategory(sessionId);
+        public async Task<SessionViewModel?> GetSessionByIdAsync(int sessionId, CancellationToken ct = default)
+        {
+            var session = await _unitOfWork.SessionRepository.GetSessionWithTrainerAndCategoryAsync(sessionId, ct);
 
 			if (session == null)
 				return null;
 
 			var MappedSession = _mapper.Map<SessionEntity, SessionViewModel>(session);
-			MappedSession.AvailableSlots = MappedSession.Capacity - _unitOfWork.SessionRepository.GetCountOfBookedSlots(session.Id);
+			MappedSession.AvailableSlots = MappedSession.Capacity - ( await _unitOfWork.SessionRepository.GetCountOfBookedSlotsAsync(session.Id, ct));
 			return MappedSession;
 		}
-		public UpdateSessionViewModel? GetSessionToUpdate(int sessionId)
-		{
-			var session = _unitOfWork.GetRepository<SessionEntity>().GetById(sessionId);
+        public async Task<UpdateSessionViewModel?> GetSessionToUpdateAsync(int sessionId, CancellationToken ct = default)
+        {
+            var session = await _unitOfWork.GetRepository<SessionEntity>().GetByIdAsync(sessionId, ct);
+            if (session is null) return null;
+            if (!await IsSessionValidForUpdatingAsync(session, ct)) return null;
+            return _mapper.Map<UpdateSessionViewModel>(session);
+        }
+        public async Task<Result> CreateSessionAsync(CreateSessionViewModel model, CancellationToken ct = default)
+        {
+            if (model.EndDate <= model.StartDate)
+                return Result.Validation("End date must be after the start date.");
+            if (model.StartDate <= DateTime.Now)
+                return Result.Validation("Start date must be in the future.");
 
-			if (!IsSessionValidForUpdating(session!)) return null;
+            var trainerExists = await _unitOfWork.GetRepository<TrainerEntity>()
+                .AnyAsync(t => t.Id == model.TrainerId, ct);
+            if (!trainerExists) return Result.NotFound("Trainer not found.");
 
-			return _mapper.Map<UpdateSessionViewModel>(session);
-		}
-		public bool CreateSession(CreateSessionViewModel createSession)
-		{
-			try
-			{
-				var repo = _unitOfWork.GetRepository<SessionEntity>();
+            var categoryExists = await _unitOfWork.GetRepository<CategoryEntity>()
+                .AnyAsync(c => c.Id == model.CategoryId, ct);
+            if (!categoryExists) return Result.NotFound("Category not found.");
 
-				if (!IsTrainerExists(createSession.TrainerId)) return false;
-				if (!IsCategoryExists(createSession.CategoryId)) return false;
-				if (!IsValidDateRange(createSession.StartDate, createSession.EndDate)) return false;
-				var sessionEntity = _mapper.Map<SessionEntity>(createSession);
-				sessionEntity.CreatedAt = DateTime.Now;
-				repo.Add(sessionEntity);
-				return _unitOfWork.SaveChanges() > 0;
-			}
-			catch (Exception)
-			{
-				return false;
-			}
-		}
-		public bool UpdateSession(int id, UpdateSessionViewModel updateSession)
-		{
-			try
-			{
-				var repo = _unitOfWork.GetRepository<SessionEntity>();
-				var session = repo.GetById(id);
+            var entity = _mapper.Map<SessionEntity>(model);
+            _unitOfWork.GetRepository<SessionEntity>().Add(entity);
+           var result =  await _unitOfWork.SaveChangesAsync(ct);
+            return result > 0 ? Result.Ok(): Result.Fail("Failed To Create Session");
+        }
+        public async Task<Result> UpdateSessionAsync(int id, UpdateSessionViewModel model, CancellationToken ct = default)
+        {
+            var repo = _unitOfWork.GetRepository<SessionEntity>();
+            var session = await repo.GetByIdAsync(id, ct);
+            if (session is null) return Result.NotFound("Session not found.");
 
-				if (!IsSessionValidForUpdating(session!)) return false;
-				if (!IsTrainerExists(updateSession.TrainerId)) return false;
-				if (!IsValidDateRange(updateSession.StartDate, updateSession.EndDate)) return false;
+            if (session.StartDate <= DateTime.Now)
+                return Result.Fail("Cannot edit a session that has already started.");
 
-				_mapper.Map(updateSession, session);
-				session!.UpdatedAt = DateTime.Now;
+            var bookedCount = await _unitOfWork.SessionRepository.GetCountOfBookedSlotsAsync(id, ct);
+            if (bookedCount > 0)
+                return Result.Fail("Cannot edit a session that already has bookings.");
 
-				repo.Update(session);
-				return _unitOfWork.SaveChanges() > 0;
-			}
-			catch (Exception)
-			{
-				return false;
-			}
-		}
-		public bool RemoveSession(int sessionId)
-		{
-			try
-			{
-				var repo = _unitOfWork.GetRepository<SessionEntity>();
-				var session = repo.GetById(sessionId);
+            if (model.EndDate <= model.StartDate)
+                return Result.Validation("End date must be after the start date.");
+            if (model.StartDate <= DateTime.Now)
+                return Result.Validation("Start date must be in the future.");
 
-				if (!IsSessionValidForRemoving(session!)) return false;
+            var trainerExists = await _unitOfWork.GetRepository<TrainerEntity>()
+                .AnyAsync(t => t.Id == model.TrainerId, ct);
+            if (!trainerExists) return Result.NotFound("Trainer not found.");
 
-				repo.Delete(session!);
-				return _unitOfWork.SaveChanges() > 0;
-			}
-			catch (Exception)
-			{
-				return false;
-			}
-		}
-		public IEnumerable<TrainerSelectViewModel> GetTrainersForDropDown()
-		{
-			var trainers = _unitOfWork.GetRepository<TrainerEntity>().GetAll();
-			return _mapper.Map<IEnumerable<TrainerSelectViewModel>>(trainers);
-		}
-		public IEnumerable<CategorySelectViewModel> GetCategoriesForDropDown()
-		{
+            _mapper.Map(model, session);
+            session.UpdatedAt = DateTime.Now;
+            repo.Update(session);
+            var result = await _unitOfWork.SaveChangesAsync(ct);
+            return result > 0 ? Result.Ok() : Result.Fail("Failed To Update Session");
+        }
+        public async Task<Result> RemoveSessionAsync(int sessionId, CancellationToken ct = default)
+        {
+            var repo = _unitOfWork.GetRepository<SessionEntity>();
+            var session = await repo.GetByIdAsync(sessionId, ct);
+            if (session is null) return Result.NotFound("Session not found.");
 
-			var categories = _unitOfWork.GetRepository<CategoryEntity>().GetAll();
-			return _mapper.Map<IEnumerable<CategorySelectViewModel>>(categories);
-		}
+            if (session.EndDate >= DateTime.Now)
+                return Result.Fail("Cannot delete a session that has not yet ended.");
 
-		#region Helper Methods
-		private bool IsSessionValidForUpdating(SessionEntity session)
-		{
-			// Only future sessions with no bookings
-			return session.StartDate > DateTime.Now &&
-		   _unitOfWork.SessionRepository.GetCountOfBookedSlots(session.Id) == 0;
-		}
-		private bool IsSessionValidForRemoving(SessionEntity session)
-		{
-			//  Only completed sessions with no bookings
-			return session.EndDate < DateTime.Now &&
-				   _unitOfWork.SessionRepository.GetCountOfBookedSlots(session.Id) == 0;
-		}
-		private bool IsTrainerExists(int id)
-		{
-			var trainer = _unitOfWork.GetRepository<TrainerEntity>().GetById(id);
-			return trainer is null ? false : true;
-		}
-		private bool IsCategoryExists(int id)
-		{
-			var category = _unitOfWork.GetRepository<CategoryEntity>().GetById(id);
-			return category is null ? false : true;
-		}
-		private bool IsValidDateRange(DateTime StartDate, DateTime EndDate)
-		{
-			return EndDate > StartDate && StartDate > DateTime.Now;
+            var bookedCount = await _unitOfWork.SessionRepository.GetCountOfBookedSlotsAsync(sessionId, ct);
+            if (bookedCount > 0)
+                return Result.Fail("Cannot delete a session that has bookings.");
+
+            repo.Delete(session);
+            await _unitOfWork.SaveChangesAsync(ct);
+            return Result.Ok();
+        }
+        public async Task<IReadOnlyList<TrainerSelectViewModel>> GetTrainersForDropDownAsync(CancellationToken ct = default)
+        {
+            var trainers = await _unitOfWork.GetRepository<TrainerEntity>().GetAllAsync(ct: ct);
+			return _mapper.Map<IReadOnlyList<TrainerSelectViewModel>>(trainers);
 		}
 
+        public async Task<IReadOnlyList<CategorySelectViewModel>> GetCategoriesForDropDownAsync(CancellationToken ct = default)
+        {
+            var categories = await _unitOfWork.GetRepository<CategoryEntity>().GetAllAsync(ct: ct);
+            return _mapper.Map<List<CategorySelectViewModel>>(categories); ;
+        }
+
+    
+        #region Helper Methods
+        private async Task<bool> IsSessionValidForUpdatingAsync(SessionEntity session, CancellationToken ct = default)
+        {
+            if (session.StartDate <= DateTime.Now) return false;
+            var booked = await _unitOfWork.SessionRepository.GetCountOfBookedSlotsAsync(session.Id, ct);
+            return booked == 0;
+        }
 		#endregion
 	}
 }

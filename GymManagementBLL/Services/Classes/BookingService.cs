@@ -1,134 +1,137 @@
 ﻿using AutoMapper;
+using GymManagementBLL.Common;
 using GymManagementBLL.Services.Interfaces;
 using GymManagementBLL.ViewModels.BookingViewModels;
 using GymManagementBLL.ViewModels.MembershipViewModels;
 using GymManagementBLL.ViewModels.SessionViewModels;
 using GymManagementDAL.Entities;
 using GymManagementDAL.Repositories.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace GymManagementBLL.Services.Classes
 {
-	public class BookingService : IBookingService
+    public class BookingService : IBookingService
 	{
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly IMapper _mapper;
+        private readonly ILogger<BookingService> _logger;
 
-		public BookingService(IUnitOfWork unitOfWork, IMapper mapper)
-		{
+        public BookingService(IUnitOfWork unitOfWork, IMapper mapper ,ILogger<BookingService> logger)
+        {
 			_unitOfWork = unitOfWork;
 			_mapper = mapper;
-		}
-		public bool CancelBooking(int MemberId, int SessionId)
-		{
-			try
-			{
-				var session = _unitOfWork.SessionRepository.GetById(SessionId);
-				if (session is null || session.StartDate <= DateTime.Now) return false;
+            _logger = logger;
 
-				var Booking = _unitOfWork.BookingRepository.GetAll(X => X.SessionId == SessionId && X.MemberId == MemberId)
-														   .FirstOrDefault();
-				if (Booking is null) return false;
-				_unitOfWork.BookingRepository.Delete(Booking);
-				return _unitOfWork.SaveChanges() > 0;
-			}
-			catch
-			{
-				return false;
-			}
-		}
-		public bool CreateNewBooking(CreateBookingViewModel createdBooking)
-		{
-			try
-			{
-				var session = _unitOfWork.SessionRepository.GetById(createdBooking.SessionId);
-				if (session is null || session.StartDate <= DateTime.Now) return false;
+        }
+        public async Task<Result> CancelBookingAsync(int memberId, int sessionId, CancellationToken ct = default)
+        {
+            var session = await _unitOfWork.SessionRepository.GetByIdAsync(sessionId, ct);
+            if (session is null) return Result.NotFound("Session not found.");
 
-				var HasActiveMembership = _unitOfWork.MembershipRepository.GetAll(X => X.MemberId == createdBooking.MemberId && X.Status == "Active").Any();
-				if (!HasActiveMembership) return false;
+            if (session.StartDate <= DateTime.Now)
+                return Result.Fail("Cannot cancel a booking for a session that has already started.");
 
-				var HasAvailableSolts = session.Capacity - _unitOfWork.SessionRepository.GetCountOfBookedSlots(createdBooking.SessionId);
-				if (HasAvailableSolts == 0) return false;
-				_unitOfWork.BookingRepository.Add(new BookingEntity()
-				{
-					MemberId = createdBooking.MemberId,
-					SessionId = createdBooking.SessionId,
-					IsAttended = false
-				});
+            var booking = await _unitOfWork.BookingRepository.FirstOrDefaultAsync(b => b.SessionId == sessionId && b.MemberId == memberId, tracking: true, ct: ct);
+            if (booking is null) return Result.NotFound("Booking not found.");
 
-				return _unitOfWork.SaveChanges() > 0;
-			}
-			catch
-			{
-				return false;
-			}
-		}
-		public IEnumerable<SessionViewModel> GetAllSessions()
-		{
-			var bookings = _unitOfWork.SessionRepository
-				.GetAllSessionsWithTrainerAndCategory(X => X.EndDate >= DateTime.Now)
-				.OrderByDescending(X => X.StartDate);
+            _unitOfWork.BookingRepository.Delete(booking);
+          var result =   await _unitOfWork.SaveChangesAsync(ct);
+            return  result > 0 ? Result.Ok() : Result.Fail("Booking Cancel Failed");
+        }
+        public async Task<Result> MarkAttendedAsync(int memberId, int sessionId, CancellationToken ct = default)
+        {
+            var booking = await _unitOfWork.BookingRepository.FirstOrDefaultAsync( b => b.MemberId == memberId && b.SessionId == sessionId, tracking: true, ct: ct);
+            if (booking is null) return Result.NotFound("Booking not found.");
 
-			if (!bookings.Any()) return null!;
-			var MappedSession = _mapper.Map<IEnumerable<SessionViewModel>>(bookings);
-			foreach (var item in MappedSession)
-			{
-				item.AvailableSlots = item.Capacity - _unitOfWork.SessionRepository.GetCountOfBookedSlots(item.Id);
-			}
-			return MappedSession;
-		}
-		public IEnumerable<MemberForSessionViewModel> GetMembersForUpcomingBySessionId(int sessionId)
-		{
-			var MemberForSession = _unitOfWork.BookingRepository.GetBySessionId(sessionId);
-			return MemberForSession.Select(X => new MemberForSessionViewModel
-			{
-				MemberId = X.MemberId,
-				SessionId = sessionId,
-				MemberName = X.Member.Name,
-				BookingDate = X.CreatedAt.ToString()
-			});
-		}
-		public IEnumerable<MemberForSessionViewModel> GetMembersForOngoingBySessionId(int sessionId)
-		{
-			var MemberForSession = _unitOfWork.BookingRepository.GetBySessionId(sessionId);
-			return MemberForSession.Select(X => new MemberForSessionViewModel
-			{
-				MemberId = X.MemberId,
-				SessionId = sessionId,
-				MemberName = X.Member.Name,
-				BookingDate = X.CreatedAt.ToString(),
-				IsAttended = X.IsAttended
-			});
-		}
-		public IEnumerable<MemberSelectListViewModel> GetMembersForDropDown(int sessionId)
-		{
-			var bookedMemberIds = _unitOfWork.GetRepository<BookingEntity>()
-								   .GetAll(x => x.SessionId == sessionId)
-								   .Select(x => x.MemberId)
-								   .ToList();
+            booking.IsAttended = true;
+			booking.UpdatedAt = DateTime.Now;
+            _unitOfWork.BookingRepository.Update(booking);
 
-			var availableMembers = _unitOfWork.GetRepository<MemberEntity>()
-											  .GetAll(x => !bookedMemberIds.Contains(x.Id));
+           var result =  await _unitOfWork.SaveChangesAsync(ct);
+            return result > 0 ? Result.Ok() : Result.Fail("Failed to Mark As Attended") ;
+        }
+        public async Task<Result> CreateNewBookingAsync(CreateBookingViewModel model, CancellationToken ct = default)
+        {
+            var session = await _unitOfWork.SessionRepository.GetByIdAsync(model.SessionId, ct);
+            if (session is null) return Result.NotFound("Session not found.");
 
-			return _mapper.Map<IEnumerable<MemberSelectListViewModel>>(availableMembers);
-		}
-		public bool MemberAttended(int MemberId, int SessionId)
-		{
-			try
-			{
-				var memberSession = _unitOfWork.GetRepository<BookingEntity>()
-										   .GetAll(X => X.MemberId == MemberId && X.SessionId == SessionId)
-										   .FirstOrDefault();
-				if (memberSession is null) return false;
+            if (session.StartDate <= DateTime.Now)
+                return Result.Fail("Cannot book a session that has already started.");
 
-				memberSession.IsAttended = true;
-				memberSession.UpdatedAt = DateTime.Now;
-				_unitOfWork.GetRepository<BookingEntity>().Update(memberSession);
-				return _unitOfWork.SaveChanges() > 0;
-			}
-			catch
-			{
-				return false;
-			}
-		}
-	}
+            var hasActiveMembership = await _unitOfWork.MembershipRepository
+                .AnyAsync(m => m.MemberId == model.MemberId && m.EndDate > DateTime.Now, ct);
+            if (!hasActiveMembership)
+                return Result.Fail("Member does not have an active membership.");
+
+            // Prevent double-booking the same member into the same session.
+            var alreadyBooked = await _unitOfWork.BookingRepository
+                .AnyAsync(b => b.SessionId == model.SessionId && b.MemberId == model.MemberId, ct);
+            if (alreadyBooked)
+                return Result.Fail("Member is already booked for this session.");
+
+            var booked = await _unitOfWork.SessionRepository.GetCountOfBookedSlotsAsync(model.SessionId, ct);
+            if (booked >= session.Capacity)
+                return Result.Fail("Session is full.");
+
+            _unitOfWork.BookingRepository.Add(new BookingEntity
+            {
+                MemberId = model.MemberId,
+                SessionId = model.SessionId,
+                IsAttended = false,
+                CreatedAt = DateTime.Now,
+            });
+
+          var result =  await _unitOfWork.SaveChangesAsync(ct);
+            return result > 0 ? Result.Ok() : Result.Fail("Failed To Book Session");
+        }
+        public async Task<IReadOnlyList<SessionViewModel>> GetAllSessionsAsync(CancellationToken ct = default)
+        {
+
+            var bookings =  await _unitOfWork.SessionRepository.GetAllSessionsWithTrainerAndCategoryAsync(x => x.EndDate >= DateTime.Now);
+            if (bookings.Count == 0) return null!;
+            var MappedSession = _mapper.Map<IReadOnlyList<SessionViewModel>>(bookings);
+            foreach (var item in MappedSession)
+            {
+                item.AvailableSlots =  item.Capacity - await _unitOfWork.SessionRepository.GetCountOfBookedSlotsAsync(item.Id); 
+            }
+            return MappedSession;
+        }
+        public async Task<IReadOnlyList<MemberForSessionViewModel>> GetMembersForUpcomingBySessionIdAsync(
+         int sessionId, CancellationToken ct = default)
+        {
+            var bookings = await _unitOfWork.BookingRepository.GetBySessionIdAsync(sessionId, ct);
+            return bookings.Select(b => new MemberForSessionViewModel
+            {
+                MemberId = b.MemberId,
+                SessionId = sessionId,
+                MemberName = b.Member.Name,
+                BookingDate = b.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
+            }).ToList();
+        }
+        public async Task<IReadOnlyList<MemberForSessionViewModel>> GetMembersForOngoingBySessionIdAsync(
+         int sessionId, CancellationToken ct = default)
+        {
+            var bookings = await _unitOfWork.BookingRepository.GetBySessionIdAsync(sessionId, ct);
+            return bookings.Select(b => new MemberForSessionViewModel
+            {
+                MemberId = b.MemberId,
+                SessionId = sessionId,
+                MemberName = b.Member.Name,
+                BookingDate = b.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
+                IsAttended = b.IsAttended,
+            }).ToList();
+        }
+        public async Task<IReadOnlyList<MemberSelectListViewModel>> GetMembersForDropDownAsync(int sessionId, CancellationToken ct = default)
+        {
+            var booking = await _unitOfWork.BookingRepository
+                                             .GetAllAsync(x => x.SessionId == sessionId);
+
+            var bookedMemberIds = booking.Select(x => x.MemberId);
+
+            var availableMembers =  await _unitOfWork.GetRepository<MemberEntity>()
+                                              .GetAllAsync(x => !bookedMemberIds.Contains(x.Id));
+
+            return _mapper.Map<IReadOnlyList<MemberSelectListViewModel>>(availableMembers);
+        }
+    }
 }

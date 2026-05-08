@@ -1,13 +1,15 @@
-﻿using GymManagementBLL.ViewModels.PlanViewModels;
+﻿using GymManagementBLL.Common;
+using GymManagementBLL.ViewModels.PlanViewModels;
 
 namespace GymManagementBLL.Services.Interfaces
 {
 	public interface IPlanService
 	{
-		bool UpdatePlan(int Id, UpdatePlanViewModel updatePlanViewModel);
-		UpdatePlanViewModel? GetPlanToUpdate(int planId);
-		IEnumerable<PlanViewModel> GetAllPlans();
-		PlanViewModel? GetPlanById(int planId);
-		bool Activate(int PlanId);
-	}
+        Task<IReadOnlyList<PlanViewModel>> GetAllPlansAsync(CancellationToken ct = default);
+        Task<PlanViewModel?> GetPlanByIdAsync(int planId, CancellationToken ct = default);
+        Task<UpdatePlanViewModel?> GetPlanToUpdateAsync(int planId, CancellationToken ct = default);
+
+        Task<Result> ToggleActivationAsync(int planId, CancellationToken ct = default);
+        Task<Result> UpdatePlanAsync(int id, UpdatePlanViewModel model, CancellationToken ct = default);
+    }
 }

@@ -1,76 +1,66 @@
 ﻿using GymManagementBLL.Services.Interfaces;
 using GymManagementBLL.ViewModels.MembershipViewModels;
+using GymManagementDAL.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using System.Data;
 
 namespace GymManagementPL.Controllers
 {
-	[Authorize]
-	public class MembershipController : Controller
-	{
-		private readonly IMembershipService _membershipService;
-		public MembershipController(IMembershipService membershipService)
-		{
-			_membershipService = membershipService;
-		}
-		public IActionResult Index()
-		{
-			var memberships = _membershipService.GetAllMemberShips();
-			return View(memberships);
-		}
-		public IActionResult Create()
-		{
-			LoadDropdowns();
-			return View();
-		}
-		[HttpPost]
-		public IActionResult Create(CreateMemberShipViewModel model)
-		{
-			if (ModelState.IsValid)
-			{
-				var result = _membershipService.CreateMembership(model);
+    [Authorize]
+    public class MembershipController : Controller
+    {
+        private readonly IMembershipService _membershipService;
 
-				if (result)
-				{
-					TempData["Success"] = "Membership created successfully!";
-					return RedirectToAction(nameof(Index));
-				}
-				else
-				{
-					TempData["Error"] = "Failed to create membership. member have an active membership.";
-				}
-			}
-			LoadDropdowns();
-			return View(model);
-		}
-		[HttpPost]
-		public IActionResult Cancel(int id)
-		{
-			var result = _membershipService.DeleteMemberShip(id);
+        public MembershipController(IMembershipService membershipService)
+        {
+            _membershipService = membershipService;
+        }
 
-			if (result)
-			{
-				TempData["Success"] = "Membership cancelled successfully!";
-			}
-			else
-			{
-				TempData["Error"] = "Failed to cancel membership.";
-			}
+        public async Task<IActionResult> Index(CancellationToken ct)
+            => View(await _membershipService.GetAllMembershipsAsync(ct));
 
-			return RedirectToAction(nameof(Index));
-		}
+        [HttpGet]
+        public async Task<IActionResult> Create(CancellationToken ct)
+        {
+            await PopulateDropdownsAsync(ct);
+            return View();
+        }
 
-		#region Helper Methods
-		private void LoadDropdowns()
-		{
-			var members = _membershipService.GetMembersForDropDown();
-			var plans = _membershipService.GetPlansForDropDown();
+        [HttpPost]
+        public async Task<IActionResult> Create(CreateMemberShipViewModel model, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+            {
+                await PopulateDropdownsAsync(ct);
+                return View(model);
+            }
 
-			ViewBag.members = new SelectList(members, "Id", "Name");
-			ViewBag.plans = new SelectList(plans, "Id", "Name");
-		}
-		#endregion
+            var result = await _membershipService.CreateMembershipAsync(model, ct);
+            if (result.Success)
+            {
+                TempData["SuccessMessage"] = "Membership created successfully.";
+                return RedirectToAction(nameof(Index));
+            }
+            TempData["ErrorMessage"] = result.Error;
+            await PopulateDropdownsAsync(ct);
+            return View(model);
+        }
 
-	}
+        [HttpPost]
+        public async Task<IActionResult> Cancel(int id, CancellationToken ct)
+        {
+            var result = await _membershipService.DeleteActiveMembershipAsync(id, ct);
+            TempData[result.Success ? "SuccessMessage" : "ErrorMessage"] =
+                result.Success ? "Membership cancelled." : result.Error;
+            return RedirectToAction(nameof(Index));
+        }
+
+        private async Task PopulateDropdownsAsync(CancellationToken ct)
+        {
+            ViewBag.Plans = new SelectList(await _membershipService.GetPlansForDropDownAsync(ct), "Id", "Name");
+            ViewBag.Members = new SelectList(await _membershipService.GetMembersForDropDownAsync(ct), "Id", "Name");
+        }
+    }
 }

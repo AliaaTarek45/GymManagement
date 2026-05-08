@@ -1,12 +1,17 @@
 ﻿using GymManagementDAL.Entities;
+using System.Linq.Expressions;
 
 namespace GymManagementDAL.Repositories.Interfaces
 {
 	public interface ISessionRepository : IGenericRepository<SessionEntity>
 	{
-		IEnumerable<SessionEntity> GetAllSessionsWithTrainerAndCategory(Func<SessionEntity, bool>? condition = null);
-		SessionEntity? GetSessionWithTrainerAndCategory(int SessionId);
 
-		int GetCountOfBookedSlots(int SessionId);
-	}
+        Task<List<SessionEntity>> GetAllSessionsWithTrainerAndCategoryAsync(
+       Expression<Func<SessionEntity, bool>>? predicate = null,
+       CancellationToken ct = default);
+
+        Task<SessionEntity?> GetSessionWithTrainerAndCategoryAsync(int sessionId, CancellationToken ct = default);
+
+        Task<int> GetCountOfBookedSlotsAsync(int sessionId, CancellationToken ct = default);
+    }
 }

@@ -1,14 +1,15 @@
-﻿using GymManagementBLL.ViewModels.MembershipViewModels;
+﻿using GymManagementBLL.Common;
+using GymManagementBLL.ViewModels.MembershipViewModels;
 
 namespace GymManagementBLL.Services.Interfaces
 {
 	public interface IMembershipService
 	{
-		IEnumerable<MemberShipViewModel> GetAllMemberShips();
-		bool CreateMembership(CreateMemberShipViewModel CreatedMemberShip);
-		bool DeleteMemberShip(int MemberId);
-		IEnumerable<PlanSelectListViewModel> GetPlansForDropDown();
-		IEnumerable<MemberSelectListViewModel> GetMembersForDropDown();
+        Task<IReadOnlyList<MemberShipViewModel>> GetAllMembershipsAsync(CancellationToken ct = default);
+        Task<IReadOnlyList<PlanSelectListViewModel>> GetPlansForDropDownAsync(CancellationToken ct = default);
+        Task<IReadOnlyList<MemberSelectListViewModel>> GetMembersForDropDownAsync(CancellationToken ct = default);
+        Task<Result> CreateMembershipAsync(CreateMemberShipViewModel model, CancellationToken ct = default);
+        Task<Result> DeleteActiveMembershipAsync(int memberId, CancellationToken ct = default);
 
-	}
+    }
 }

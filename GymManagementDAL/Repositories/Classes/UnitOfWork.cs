@@ -1,6 +1,8 @@
 ﻿using GymManagementDAL.Data.Contexts;
 using GymManagementDAL.Entities;
 using GymManagementDAL.Repositories.Interfaces;
+using Microsoft.EntityFrameworkCore.Storage;
+using System.Collections.Concurrent;
 
 namespace GymManagementDAL.Repositories.Classes
 {
@@ -34,8 +36,11 @@ namespace GymManagementDAL.Repositories.Classes
 			repositories[typeName] = Repo;
 			return Repo;
 		}
+  
+        public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken ct = default)
+        => _dbContext.Database.BeginTransactionAsync(ct);
 
-		public int SaveChanges()
-		=> _dbContext.SaveChanges();
-	}
+        public Task<int> SaveChangesAsync(CancellationToken ct = default)
+              => _dbContext.SaveChangesAsync(ct);
+    }
 }

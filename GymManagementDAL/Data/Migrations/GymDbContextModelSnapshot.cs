@@ -17,7 +17,7 @@ namespace GymManagementDAL.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.10")
+                .HasAnnotation("ProductVersion", "9.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -231,11 +231,11 @@ namespace GymManagementDAL.Data.Migrations
 
             modelBuilder.Entity("GymManagementDAL.Entities.MembershipEntity", b =>
                 {
-                    b.Property<int>("MemberId")
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    b.Property<int>("PlanId")
-                        .HasColumnType("int");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -246,10 +246,18 @@ namespace GymManagementDAL.Data.Migrations
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("MemberId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PlanId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
-                    b.HasKey("MemberId", "PlanId");
+                    b.HasKey("Id");
+
+                    b.HasIndex("MemberId");
 
                     b.HasIndex("PlanId");
 
@@ -611,7 +619,7 @@ namespace GymManagementDAL.Data.Migrations
                     b.HasOne("GymManagementDAL.Entities.PlanEntity", "Plan")
                         .WithMany("PlanMembers")
                         .HasForeignKey("PlanId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Member");

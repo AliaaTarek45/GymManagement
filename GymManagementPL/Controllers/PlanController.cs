@@ -5,103 +5,65 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GymManagementPL.Controllers
 {
-	[Authorize]
-	public class PlanController : Controller
-	{
-		private readonly IPlanService _planService;
+    [Authorize]
+    public class PlanController : Controller
+    {
+        private readonly IPlanService _planService;
 
-		public PlanController(IPlanService planService)
-		{
-			_planService = planService;
-		}
+        public PlanController(IPlanService planService)
+        {
+            _planService = planService;
+        }
 
-		#region Get All Plans
-		public IActionResult Index()
-		{
-			var plans = _planService.GetAllPlans();
-			return View(plans);
-		}
-		#endregion
+        public async Task<IActionResult> Index(CancellationToken ct)
+            => View(await _planService.GetAllPlansAsync(ct));
 
-		#region Plan Details
-		public IActionResult Details(int id)
-		{
-			if (id <= 0)
-			{
-				TempData["ErrorMessage"] = "Id Of Plan Can Not Be 0 Or Negative";
-				return RedirectToAction(nameof(Index));
-			}
-			var plan = _planService.GetPlanById(id);
+        [HttpGet]
+        public async Task<IActionResult> Details(int id, CancellationToken ct)
+        {
+            var plan = await _planService.GetPlanByIdAsync(id, ct);
+            if (plan is null)
+            {
+                TempData["ErrorMessage"] = "Plan not found.";
+                return RedirectToAction(nameof(Index));
+            }
+            return View(plan);
+        }
 
-			if (plan == null)
-			{
-				TempData["ErrorMessage"] = "Plan not found.";
-				return RedirectToAction(nameof(Index));
-			}
+        [HttpGet]
+        public async Task<IActionResult> Edit(int id, CancellationToken ct)
+        {
+            var plan = await _planService.GetPlanToUpdateAsync(id, ct);
+            if (plan is null)
+            {
+                TempData["ErrorMessage"] = "Plan cannot be edited (not found, inactive, or has active memberships).";
+                return RedirectToAction(nameof(Index));
+            }
+            return View(plan);
+        }
 
-			return View(plan);
-		}
-		#endregion
+        [HttpPost]
+        public async Task<IActionResult> Edit(int id, UpdatePlanViewModel model, CancellationToken ct)
+        {
+            if (!ModelState.IsValid) return View(model);
 
-		#region Edit Plan
-		public IActionResult Edit(int id)
-		{
-			if (id <= 0)
-			{
-				TempData["ErrorMessage"] = "Id Of Plan Can Not Be 0 Or Negative";
-				return RedirectToAction(nameof(Index));
-			}
-			var plan = _planService.GetPlanToUpdate(id);
+            var result = await _planService.UpdatePlanAsync(id, model, ct);
+            if (result.Success)
+            {
+                TempData["SuccessMessage"] = "Plan updated successfully.";
+                return RedirectToAction(nameof(Index));
+            }
+            TempData["ErrorMessage"] = result.Error;
+            return View(model);
+        }
 
-			if (plan == null)
-			{
-				TempData["ErrorMessage"] = "Plan Can not be Updated";
-				return RedirectToAction(nameof(Index));
-			}
-
-			return View(plan);
-		}
-
-		[HttpPost]
-		public IActionResult Edit([FromRoute] int id, UpdatePlanViewModel model)
-		{
-			if (!ModelState.IsValid)
-			{
-				ModelState.AddModelError("WrongData", "Check Data Validation");
-				return View(model);
-			}
-
-			var result = _planService.UpdatePlan(id, model);
-
-			if (result)
-			{
-				TempData["SuccessMessage"] = "Plan updated successfully!";
-			}
-			else
-			{
-				TempData["ErrorMessage"] = "Failed to update plan.";
-			}
-			return RedirectToAction(nameof(Index));
-		}
-		#endregion
-
-		#region Delete Plan
-
-		[HttpPost]
-		public IActionResult Activate(int id)
-		{
-			var result = _planService.Activate(id);
-
-			if (result)
-			{
-				TempData["SuccessMessage"] = "Plan Status Changed";
-			}
-			else
-			{
-				TempData["ErrorMessage"] = "Failed to Change plan Status";
-			}
-			return RedirectToAction(nameof(Index));
-		}
-		#endregion
-	}
+        [HttpPost]
+        public async Task<IActionResult> Activate(int id, CancellationToken ct)
+        {
+            var result = await _planService.ToggleActivationAsync(id, ct);
+            TempData[result.Success ? "SuccessMessage" : "ErrorMessage"] =
+                result.Success ? "Plan status changed." : result.Error;
+            return RedirectToAction(nameof(Index));
+        }
+    }
 }

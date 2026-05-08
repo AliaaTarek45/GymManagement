@@ -15,66 +15,52 @@ namespace GymManagementPL.Controllers
 		{
 			_bookingService = bookingService;
 		}
-		public IActionResult Index()
-		{
-			var Bookings = _bookingService.GetAllSessions();
-			return View(Bookings);
-		}
-		public ActionResult GetMembersForUpcomingSession(int id)
-		{
-			var Members = _bookingService.GetMembersForUpcomingBySessionId(id);
-			return View(Members);
-		}
-		public ActionResult Create(int id)
-		{
-			var members = _bookingService.GetMembersForDropDown(id);
-			ViewBag.members = new SelectList(members, "Id", "Name");
-			return View();
-		}
-		[HttpPost]
-		public ActionResult Create(CreateBookingViewModel createdBooking)
-		{
-
-			var result = _bookingService.CreateNewBooking(createdBooking);
-			if (result)
-			{
-				TempData["SuccessMessage"] = "Booking Created successfully!";
-			}
-			else
-			{
-				TempData["ErrorMessage"] = "Failed to Create Booking.";
-			}
-
-			return RedirectToAction(nameof(GetMembersForUpcomingSession), new { id = createdBooking.SessionId });
+        public async Task<IActionResult> Index(CancellationToken ct)
+          => View(await _bookingService.GetAllSessionsAsync(ct));
 
 
-		}
-		[HttpPost]
-		public ActionResult Cancel(int MemberId, int SessionId)
-		{
-			var result = _bookingService.CancelBooking(MemberId, SessionId);
-			if (result)
-			{
-				TempData["SuccessMessage"] = "Booking cancelled successfully!";
-			}
-			else
-			{
-				TempData["ErrorMessage"] = "Failed to cancel Booking.";
-			}
+        [HttpGet]
+        public async Task<IActionResult> GetMembersForUpcomingSession(int id, CancellationToken ct)
+          => View(await _bookingService.GetMembersForUpcomingBySessionIdAsync(id, ct));
 
-			return RedirectToAction(nameof(GetMembersForUpcomingSession), new { id = SessionId });
-		}
-		public ActionResult GetMembersForOngoingSessions(int id)
-		{
-			var Members = _bookingService.GetMembersForOngoingBySessionId(id);
-			return View(Members);
-		}
-		[HttpPost]
-		public ActionResult Attended(int MemberId, int SessionId)
-		{
-			var result = _bookingService.MemberAttended(MemberId, SessionId);
-			return RedirectToAction(nameof(GetMembersForOngoingSessions), new { id = SessionId });
+        [HttpGet]
+        public async Task<IActionResult> GetMembersForOngoingSessions(int id, CancellationToken ct)
+            => View(await _bookingService.GetMembersForOngoingBySessionIdAsync(id, ct));
 
-		}
-	}
+        [HttpGet]
+        public async Task<IActionResult> Create(int id, CancellationToken ct)
+        {
+            var members = await _bookingService.GetMembersForDropDownAsync(id, ct);
+            ViewBag.Members = new SelectList(members, "Id", "Name");
+            ViewBag.SessionId = id;
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create(CreateBookingViewModel model, CancellationToken ct)
+        {
+            var result = await _bookingService.CreateNewBookingAsync(model, ct);
+            TempData[result.Success ? "SuccessMessage" : "ErrorMessage"] =
+                result.Success ? "Booking created successfully." : result.Error;
+            return RedirectToAction(nameof(GetMembersForUpcomingSession), new { id = model.SessionId });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Cancel(int memberId, int sessionId, CancellationToken ct)
+        {
+            var result = await _bookingService.CancelBookingAsync(memberId, sessionId, ct);
+            TempData[result.Success ? "SuccessMessage" : "ErrorMessage"] =
+                result.Success ? "Booking cancelled successfully." : result.Error;
+            return RedirectToAction(nameof(GetMembersForUpcomingSession), new { id = sessionId });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Attended(int memberId, int sessionId, CancellationToken ct)
+        {
+            var result = await _bookingService.MarkAttendedAsync(memberId, sessionId, ct);
+            TempData[result.Success ? "SuccessMessage" : "ErrorMessage"] =
+                result.Success ? "Attendance recorded." : result.Error;
+            return RedirectToAction(nameof(GetMembersForOngoingSessions), new { id = sessionId });
+        }
+    }
 }

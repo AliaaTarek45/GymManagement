@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GymManagementDAL.Repositories.Classes
 {
-	public class BookingRepository : GenericRepository<BookingEntity>, IBookingRepository
+    public class BookingRepository : GenericRepository<BookingEntity>, IBookingRepository
 	{
 		private readonly GymDbContext _dbContext;
 
@@ -13,11 +13,10 @@ namespace GymManagementDAL.Repositories.Classes
 		{
 			_dbContext = dbContext;
 		}
-		public IEnumerable<BookingEntity> GetBySessionId(int sessionId)
-		{
-			return _dbContext.Bookings.Include(X => X.Member)
-									  .Where(X => X.SessionId == sessionId).ToList();
-		}
 
-	}
+        public Task<List<BookingEntity>> GetBySessionIdAsync(int sessionId, CancellationToken ct = default)
+            => _dbContext.Bookings.AsNoTracking().Include(b => b.Member).Where(b => b.SessionId == sessionId).ToListAsync(ct);
+
+      
+    }
 }

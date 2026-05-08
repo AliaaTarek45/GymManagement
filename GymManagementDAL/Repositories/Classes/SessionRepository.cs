@@ -2,6 +2,7 @@
 using GymManagementDAL.Entities;
 using GymManagementDAL.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 
 namespace GymManagementDAL.Repositories.Classes
 {
@@ -13,28 +14,24 @@ namespace GymManagementDAL.Repositories.Classes
 		{
 			_dbContext = dbContext;
 		}
-		public IEnumerable<SessionEntity> GetAllSessionsWithTrainerAndCategory(Func<SessionEntity, bool>? condition = null)
-		{
-			if (condition is null)
-				return _dbContext.Sessions.Include(X => X.Trainer)
-					.Include(X => X.Category)
-					.ToList();
-			else
-				return _dbContext.Sessions.Include(X => X.Trainer)
-					.Include(X => X.Category).ToList()
-					.Where(condition);
-		}
+        public async Task<List<SessionEntity>> GetAllSessionsWithTrainerAndCategoryAsync(Expression<Func<SessionEntity, bool>>? predicate = null,CancellationToken ct = default)
+        {
+            IQueryable<SessionEntity> query = _dbContext.Sessions
+                .AsNoTracking()
+                .Include(s => s.Trainer)
+                .Include(s => s.Category);
 
-		public int GetCountOfBookedSlots(int SessionId)
-		{
-			return _dbContext.Bookings.Where(X => X.SessionId == SessionId).Count();
-		}
+            if (predicate is not null) query = query.Where(predicate);
 
-		public SessionEntity? GetSessionWithTrainerAndCategory(int SessionId)
-		{
-			return _dbContext.Sessions.Include(X => X.Trainer)
-									  .Include(X => X.Category)
-									  .FirstOrDefault(X => X.Id == SessionId);
-		}
-	}
+            return await query.ToListAsync(ct);
+        }
+
+
+        public Task<int> GetCountOfBookedSlotsAsync(int sessionId, CancellationToken ct = default)
+			=> _dbContext.Bookings.AsNoTracking().CountAsync(b => b.SessionId == sessionId, ct);
+
+        public Task<SessionEntity?> GetSessionWithTrainerAndCategoryAsync(int sessionId, CancellationToken ct = default)
+			=> _dbContext.Sessions.AsNoTracking().Include(s => s.Trainer).Include(s => s.Category).FirstOrDefaultAsync(s => s.Id == sessionId, ct);
+
+    }
 }

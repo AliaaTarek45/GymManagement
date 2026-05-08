@@ -13,9 +13,7 @@ namespace GymManagementPL.Controllers
 		{
 			_analyticsService = analyticsService;
 		}
-		public IActionResult Index()
-		{
-			return View(_analyticsService.GetAnalyticsData());
-		}
-	}
+        public async Task<IActionResult> Index(CancellationToken ct)
+          => View(await _analyticsService.GetAnalyticsDataAsync(ct));
+    }
 }

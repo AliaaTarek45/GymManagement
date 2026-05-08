@@ -1,4 +1,5 @@
 ﻿using GymManagementDAL.Entities;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace GymManagementDAL.Repositories.Interfaces
 {
@@ -7,8 +8,9 @@ namespace GymManagementDAL.Repositories.Interfaces
 		public IMembershipRepository MembershipRepository { get; }
 		public ISessionRepository SessionRepository { get; }
 		public IBookingRepository BookingRepository { get; }
-		IGenericRepository<TEntity> GetRepository<TEntity>() where TEntity : BaseEntity;
-		int SaveChanges();
+        IGenericRepository<TEntity> GetRepository<TEntity>() where TEntity : BaseEntity;
+        Task<int> SaveChangesAsync(CancellationToken ct = default);
+        Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken ct = default);
 
-	}
+    }
 }

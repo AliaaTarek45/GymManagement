@@ -1,16 +1,16 @@
-﻿using GymManagementBLL.ViewModels.MemberViewModel;
+﻿using GymManagementBLL.Common;
+using GymManagementBLL.ViewModels.MemberViewModel;
 
 namespace GymManagementBLL.Services.Interfaces
 {
 	public interface IMemberService
 	{
-		bool CreateMember(CreateMemberViewModel CreatedMember);
-		bool UpdateMemberDetails(int Id, MemberToUpdateViewModel updateViewModel);
-		bool RemoveMember(int MemberId);
-		MemberViewModel? GetMemberDetails(int MemberId);
-		HealthRecordViewModel? GetMemberHealthRecord(int MemberId);
-		MemberToUpdateViewModel? GetMemberToUpdate(int MemberId);
-		IEnumerable<MemberViewModel> GetAllMembers();
-
+        Task<Result> CreateMemberAsync(CreateMemberViewModel model, CancellationToken ct = default);
+        Task<Result> UpdateMemberDetailsAsync(int id, MemberToUpdateViewModel model, CancellationToken ct = default);
+        Task<Result> RemoveMemberAsync(int memberId, CancellationToken ct = default);
+        Task<IReadOnlyList<MemberViewModel>> GetAllMembersAsync(CancellationToken ct = default);
+        Task<MemberViewModel?> GetMemberDetailsAsync(int memberId, CancellationToken ct = default);
+        Task<HealthRecordViewModel?> GetMemberHealthRecordAsync(int memberId, CancellationToken ct = default);
+        Task<MemberToUpdateViewModel?> GetMemberToUpdateAsync(int memberId, CancellationToken ct = default);
 	}
 }

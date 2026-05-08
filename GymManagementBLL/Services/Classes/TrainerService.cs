@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using GymManagementBLL.Common;
 using GymManagementBLL.Services.Interfaces;
 using GymManagementBLL.ViewModels.TrainerViewModels;
 using GymManagementDAL.Entities;
@@ -16,103 +17,73 @@ namespace GymManagementBLL.Services.Classes
 			_unitOfWork = unitOfWork;
 			_mapper = mapper;
 		}
-		public bool CreateTrainer(CreateTrainerViewModel createTrainer)
-		{
-			try
-			{
-				var Repo = _unitOfWork.GetRepository<TrainerEntity>();
 
-				if (IsEmailExists(createTrainer.Email) || IsPhoneExists(createTrainer.Phone)) return false;
-				var TrainerEntity = _mapper.Map<CreateTrainerViewModel, TrainerEntity>(createTrainer);
+        public async Task<IReadOnlyList<TrainerViewModel>> GetAllTrainersAsync(CancellationToken ct = default)
+        {
+            var trainers = await _unitOfWork.GetRepository<TrainerEntity>().GetAllAsync(ct: ct);
+            return _mapper.Map<IReadOnlyList<TrainerViewModel>>(trainers);
+        }
+        public async Task<TrainerViewModel?> GetTrainerDetailsAsync(int trainerId, CancellationToken ct = default)
+        {
+            var trainer = await _unitOfWork.GetRepository<TrainerEntity>().GetByIdAsync(trainerId, ct);
+            return trainer is null ? null : _mapper.Map<TrainerViewModel>(trainer);
+        }
+        public async Task<Result> CreateTrainerAsync(CreateTrainerViewModel model, CancellationToken ct = default)
+        {
+            var repo = _unitOfWork.GetRepository<TrainerEntity>();
 
+            if (await repo.AnyAsync(t => t.Email == model.Email, ct))
+                return Result.Fail("A trainer with this email already exists.");
+            if (await repo.AnyAsync(t => t.Phone == model.Phone, ct))
+                return Result.Fail("A trainer with this phone number already exists.");
 
-				Repo.Add(TrainerEntity);
+            var entity = _mapper.Map<TrainerEntity>(model);
+            repo.Add(entity);
 
-				return _unitOfWork.SaveChanges() > 0;
+            var result = await _unitOfWork.SaveChangesAsync(ct);
+            return result > 0 ? Result.Ok() : Result.Fail("Failed To Create Trainer");
+        }
 
+        public async Task<TrainerToUpdateViewModel?> GetTrainerToUpdateAsync(int trainerId, CancellationToken ct = default)
+        {
+            var trainer = await _unitOfWork.GetRepository<TrainerEntity>().GetByIdAsync(trainerId, ct);
+            return trainer is null ? null : _mapper.Map<TrainerToUpdateViewModel>(trainer);
+        }
+        public async Task<Result> RemoveTrainerAsync(int trainerId, CancellationToken ct = default)
+        {
+            var repo = _unitOfWork.GetRepository<TrainerEntity>();
+            var trainer = await repo.GetByIdAsync(trainerId, ct);
+            if (trainer is null) return Result.NotFound("Trainer not found.");
 
-			}
-			catch (Exception)
-			{
-				return false;
-			}
-		}
-		public IEnumerable<TrainerViewModel> GetAllTrainers()
-		{
-			var Trainers = _unitOfWork.GetRepository<TrainerEntity>().GetAll();
-			if (Trainers is null || !Trainers.Any()) return [];
+            var hasFutureSessions = await _unitOfWork.GetRepository<SessionEntity>()
+                .AnyAsync(s => s.TrainerId == trainerId && s.StartDate > DateTime.Now, ct);
+            if (hasFutureSessions)
+                return Result.Fail("Cannot delete a trainer with upcoming sessions.");
 
-			var mappedTrainers = _mapper.Map<IEnumerable<TrainerEntity>, IEnumerable<TrainerViewModel>>(Trainers);
-			return mappedTrainers;
-		}
-		public TrainerViewModel? GetTrainerDetails(int trainerId)
-		{
-			var Trainer = _unitOfWork.GetRepository<TrainerEntity>().GetById(trainerId);
-			if (Trainer is null) return null;
+            repo.Delete(trainer);
+            await _unitOfWork.SaveChangesAsync(ct);
+            return Result.Ok();
+        }
+  
+        public async Task<Result> UpdateTrainerDetailsAsync(int trainerId, TrainerToUpdateViewModel model, CancellationToken ct = default)
+        {
+            var repo = _unitOfWork.GetRepository<TrainerEntity>();
+            var trainer = await repo.GetByIdAsync(trainerId, ct);
+            if (trainer is null) return Result.NotFound("Trainer not found.");
 
-			var mappedTrainer = _mapper.Map<TrainerEntity, TrainerViewModel>(Trainer);
-			return mappedTrainer;
-		}
-		public TrainerToUpdateViewModel? GetTrainerToUpdate(int trainerId)
-		{
-			var Trainer = _unitOfWork.GetRepository<TrainerEntity>().GetById(trainerId);
-			if (Trainer is null) return null;
+            // BUG FIX from original: original code checked against MemberEntity (wrong table).
+            if (await repo.AnyAsync(t => t.Email == model.Email && t.Id != trainerId, ct))
+                return Result.Fail("Another trainer is already using this email.");
+            if (await repo.AnyAsync(t => t.Phone == model.Phone && t.Id != trainerId, ct))
+                return Result.Fail("Another trainer is already using this phone number.");
 
-			var mappedTrainer = _mapper.Map<TrainerEntity, TrainerToUpdateViewModel>(Trainer);
-			return mappedTrainer;
+            _mapper.Map(model, trainer);
+			trainer.UpdatedAt = DateTime.Now;
+            repo.Update(trainer);
 
+            var result = await _unitOfWork.SaveChangesAsync(ct);
+            return result > 0 ? Result.Ok() :  Result.Fail("Failed To Update Trainer");
+        }
 
-
-		}
-		public bool RemoveTrainer(int trainerId)
-		{
-			var Repo = _unitOfWork.GetRepository<TrainerEntity>();
-			var TrainerToRemove = Repo.GetById(trainerId);
-			if (TrainerToRemove is null || HasActiveSessions(trainerId)) return false;
-			Repo.Delete(TrainerToRemove);
-			return _unitOfWork.SaveChanges() > 0;
-
-		}
-		public bool UpdateTrainerDetails(TrainerToUpdateViewModel updatedTrainer, int trainerId)
-		{
-			var emailExist = _unitOfWork.GetRepository<MemberEntity>().GetAll(
-				m => m.Email == updatedTrainer.Email && m.Id != trainerId);
-
-			var PhoneExist = _unitOfWork.GetRepository<MemberEntity>().GetAll(
-				m => m.Phone == updatedTrainer.Phone && m.Id != trainerId);
-
-			if (emailExist.Any() || PhoneExist.Any()) return false;
-
-			var Repo = _unitOfWork.GetRepository<TrainerEntity>();
-			var TrainerToUpdate = Repo.GetById(trainerId);
-
-			if (TrainerToUpdate is null) return false;
-
-			_mapper.Map(updatedTrainer, TrainerToUpdate);
-			TrainerToUpdate.UpdatedAt = DateTime.Now;
-
-			return _unitOfWork.SaveChanges() > 0;
-		}
-
-		#region Helper Methods
-		private bool IsEmailExists(string email)
-		{
-			var existing = _unitOfWork.GetRepository<TrainerEntity>().GetAll(
-				m => m.Email == email).Any();
-			return existing;
-		}
-		private bool IsPhoneExists(string phone)
-		{
-			var existing = _unitOfWork.GetRepository<TrainerEntity>().GetAll(
-				m => m.Phone == phone).Any();
-			return existing;
-		}
-		private bool HasActiveSessions(int Id)
-		{
-			var activeSessions = _unitOfWork.GetRepository<SessionEntity>().GetAll(
-			   s => s.TrainerId == Id && s.StartDate > DateTime.Now).Any();
-			return activeSessions;
-		}
-		#endregion
 	}
 }

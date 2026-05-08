@@ -13,20 +13,20 @@ namespace GymManagementDAL.Data.Configurations
 	{
 		public void Configure(EntityTypeBuilder<MembershipEntity> builder)
 		{
-			builder.Ignore(X => X.Id);
-			builder.Property(X => X.CreatedAt)
+            builder.HasKey(m => m.Id);
+            builder.Property(X => X.CreatedAt)
 				   .HasColumnName("StartDate")
 				   .HasDefaultValueSql("GETDATE()");
 
-			builder.HasOne(X => X.Plan)
-				   .WithMany(X => X.PlanMembers)
-				   .HasForeignKey(X => X.PlanId);
+            builder.HasOne(m => m.Plan)
+                          .WithMany(p => p.PlanMembers)
+                          .HasForeignKey(m => m.PlanId)
+                          .OnDelete(DeleteBehavior.Restrict);
 
-			builder.HasOne(X => X.Member)
-				   .WithMany(X => X.MemberPlans)
-				   .HasForeignKey(X => X.MemberId);
-
-			builder.HasKey(X => new { X.MemberId, X.PlanId });
+            builder.HasOne(m => m.Member)
+                   .WithMany(me => me.MemberPlans)
+                   .HasForeignKey(m => m.MemberId)
+                   .OnDelete(DeleteBehavior.Cascade);
 		}
 	}
 }
