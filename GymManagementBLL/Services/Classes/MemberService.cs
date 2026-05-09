@@ -9,19 +9,19 @@ using Microsoft.Extensions.Logging;
 
 namespace GymManagementBLL.Services.Classes
 {
-	public class MemberService : IMemberService
-	{
-		private readonly IUnitOfWork _unitOfWork;
-		private readonly IMapper _mapper;
-		private readonly IAttachmentService _attachmentService;
+    public class MemberService : IMemberService
+    {
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
+        private readonly IAttachmentService _attachmentService;
         private readonly ILogger<MemberService> _logger;
 
         public MemberService(IUnitOfWork unitOfWork, IMapper mapper, IAttachmentService attachmentService, ILogger<MemberService> logger)
 
         {
             _unitOfWork = unitOfWork;
-			_mapper = mapper;
-			_attachmentService = attachmentService;
+            _mapper = mapper;
+            _attachmentService = attachmentService;
             _logger = logger;
 
         }
@@ -43,7 +43,7 @@ namespace GymManagementBLL.Services.Classes
 
             repo.Add(entity);
             var result = await _unitOfWork.SaveChangesAsync(ct);
-            return result >0 ?  Result.Ok() : Result.Fail("Failed To Create Member");
+            return result > 0 ? Result.Ok() : Result.Fail("Failed To Create Member");
         }
         public async Task<IReadOnlyList<MemberViewModel>> GetAllMembersAsync(CancellationToken ct = default)
         {
@@ -54,27 +54,27 @@ namespace GymManagementBLL.Services.Classes
         {
             var member = await _unitOfWork.GetRepository<MemberEntity>().GetByIdAsync(memberId, ct);
 
-			if (member is null) return null;
+            if (member is null) return null;
 
-			var viewModel = _mapper.Map<MemberViewModel>(member);
+            var viewModel = _mapper.Map<MemberViewModel>(member);
 
             var activeMembership = (await _unitOfWork.GetRepository<MembershipEntity>().GetAllAsync(MP => MP.MemberId == memberId
-                 && MP.EndDate >= DateTime.Now, ct : ct)).FirstOrDefault();
+                 && MP.EndDate >= DateTime.Now, ct: ct)).FirstOrDefault();
 
             if (activeMembership is not null)
-			{
-				var activePlan = await _unitOfWork.GetRepository<PlanEntity>().GetByIdAsync(activeMembership.PlanId, ct);
+            {
+                var activePlan = await _unitOfWork.GetRepository<PlanEntity>().GetByIdAsync(activeMembership.PlanId, ct);
 
-				viewModel.PlanName = activePlan?.Name;
-				viewModel.MembershipStartDate = activeMembership.CreatedAt.ToShortDateString();
-				viewModel.MembershipEndDate = activeMembership.EndDate.ToShortDateString();
-			}
+                viewModel.PlanName = activePlan?.Name;
+                viewModel.MembershipStartDate = activeMembership.CreatedAt.ToShortDateString();
+                viewModel.MembershipEndDate = activeMembership.EndDate.ToShortDateString();
+            }
 
-			return viewModel;
-		}
+            return viewModel;
+        }
         public async Task<HealthRecordViewModel?> GetMemberHealthRecordAsync(int memberId, CancellationToken ct = default)
         {
-            var record = await _unitOfWork.GetRepository<HealthRecordEntity>().GetByIdAsync(memberId, ct);
+            var record = await _unitOfWork.GetRepository<HealthRecordEntity>().FirstOrDefaultAsync(x => x.MemberId == memberId, ct: ct);
             return record is null ? null : _mapper.Map<HealthRecordViewModel>(record);
         }
         public async Task<MemberToUpdateViewModel?> GetMemberToUpdateAsync(int memberId, CancellationToken ct = default)
@@ -89,8 +89,8 @@ namespace GymManagementBLL.Services.Classes
             if (member is null) return Result.NotFound("Member not found.");
 
 
-			var hasFutureSessions = await _unitOfWork.BookingRepository.AnyAsync(b => b.MemberId == memberId && b.Session.StartDate > DateTime.Now);
-            
+            var hasFutureSessions = await _unitOfWork.BookingRepository.AnyAsync(b => b.MemberId == memberId && b.Session.StartDate > DateTime.Now);
+
             if (hasFutureSessions)
                 return Result.Fail("Cannot delete a member with upcoming sessions.");
 
@@ -127,8 +127,8 @@ namespace GymManagementBLL.Services.Classes
             member.UpdatedAt = DateTime.Now;
             repo.Update(member);
             var result = await _unitOfWork.SaveChangesAsync(ct);
-            return  result > 0 ? Result.Ok() : Result.Fail("Failed To update Member");
+            return result > 0 ? Result.Ok() : Result.Fail("Failed To update Member");
         }
 
-	}
+    }
 }

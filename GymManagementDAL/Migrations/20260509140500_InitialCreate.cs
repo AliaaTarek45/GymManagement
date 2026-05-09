@@ -3,7 +3,9 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace GymManagementDAL.Data.Migrations
+#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
+
+namespace GymManagementDAL.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration
@@ -74,10 +76,6 @@ namespace GymManagementDAL.Data.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Photo = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Height = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Weight = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    BloodType = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Note = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     JoinDate = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()"),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     Name = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false),
@@ -93,7 +91,7 @@ namespace GymManagementDAL.Data.Migrations
                 {
                     table.PrimaryKey("PK_Members", x => x.Id);
                     table.CheckConstraint("GymUser_EmailCheck", "Email LIKE '_%@_%._%'");
-                    table.CheckConstraint("GymUser_PhoneCheck", "Phone LIKE '01%' and Phone Not Like '%[^0-9]%'");
+                    table.CheckConstraint("GymUser_PhoneCheck", "[Phone] LIKE '010%' OR [Phone] LIKE '011%' OR [Phone] LIKE '012%' OR [Phone] LIKE '015%'");
                 });
 
             migrationBuilder.CreateTable(
@@ -107,7 +105,7 @@ namespace GymManagementDAL.Data.Migrations
                     DurationDays = table.Column<int>(type: "int", nullable: false),
                     Price = table.Column<decimal>(type: "decimal(10,2)", precision: 10, scale: 2, nullable: false),
                     IsActive = table.Column<bool>(type: "bit", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()"),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
@@ -138,7 +136,7 @@ namespace GymManagementDAL.Data.Migrations
                 {
                     table.PrimaryKey("PK_Trainers", x => x.Id);
                     table.CheckConstraint("GymUser_EmailCheck1", "Email LIKE '_%@_%._%'");
-                    table.CheckConstraint("GymUser_PhoneCheck1", "Phone LIKE '01%' and Phone Not Like '%[^0-9]%'");
+                    table.CheckConstraint("GymUser_PhoneCheck1", "[Phone] LIKE '010%' OR [Phone] LIKE '011%' OR [Phone] LIKE '012%' OR [Phone] LIKE '015%'");
                 });
 
             migrationBuilder.CreateTable(
@@ -248,6 +246,31 @@ namespace GymManagementDAL.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "HealthRecords",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Height = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Weight = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    BloodType = table.Column<string>(type: "nvarchar(5)", maxLength: 5, nullable: false),
+                    Note = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    MemberId = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_HealthRecords", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_HealthRecords_Members_MemberId",
+                        column: x => x.MemberId,
+                        principalTable: "Members",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Memberships",
                 columns: table => new
                 {
@@ -337,6 +360,18 @@ namespace GymManagementDAL.Data.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.InsertData(
+                table: "Categories",
+                columns: new[] { "Id", "CategoryName", "CreatedAt", "UpdatedAt" },
+                values: new object[,]
+                {
+                    { 1, "Cardio", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null },
+                    { 2, "Strength", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null },
+                    { 3, "Yoga", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null },
+                    { 4, "Boxing", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null },
+                    { 5, "CrossFit", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null }
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
                 table: "AspNetRoleClaims",
@@ -380,6 +415,12 @@ namespace GymManagementDAL.Data.Migrations
                 name: "IX_Bookings_MemberId",
                 table: "Bookings",
                 column: "MemberId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_HealthRecords_MemberId",
+                table: "HealthRecords",
+                column: "MemberId",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Members_Email",
@@ -446,6 +487,9 @@ namespace GymManagementDAL.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "Bookings");
+
+            migrationBuilder.DropTable(
+                name: "HealthRecords");
 
             migrationBuilder.DropTable(
                 name: "Memberships");

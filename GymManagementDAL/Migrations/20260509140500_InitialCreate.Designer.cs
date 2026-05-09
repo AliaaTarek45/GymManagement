@@ -9,10 +9,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace GymManagementDAL.Data.Migrations
+namespace GymManagementDAL.Migrations
 {
     [DbContext(typeof(GymDbContext))]
-    [Migration("20260508165411_InitialCreate")]
+    [Migration("20260509140500_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -149,29 +149,78 @@ namespace GymManagementDAL.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Categories");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CategoryName = "Cardio",
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CategoryName = "Strength",
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = 3,
+                            CategoryName = "Yoga",
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = 4,
+                            CategoryName = "Boxing",
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = 5,
+                            CategoryName = "CrossFit",
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        });
                 });
 
             modelBuilder.Entity("GymManagementDAL.Entities.HealthRecordEntity", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("BloodType")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<decimal>("Height")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int>("MemberId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Note")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<decimal>("Weight")
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Members");
+                    b.HasIndex("MemberId")
+                        .IsUnique();
+
+                    b.ToTable("HealthRecords");
                 });
 
             modelBuilder.Entity("GymManagementDAL.Entities.MemberEntity", b =>
@@ -228,7 +277,7 @@ namespace GymManagementDAL.Data.Migrations
                         {
                             t.HasCheckConstraint("GymUser_EmailCheck", "Email LIKE '_%@_%._%'");
 
-                            t.HasCheckConstraint("GymUser_PhoneCheck", "Phone LIKE '01%' and Phone Not Like '%[^0-9]%'");
+                            t.HasCheckConstraint("GymUser_PhoneCheck", "[Phone] LIKE '010%' OR [Phone] LIKE '011%' OR [Phone] LIKE '012%' OR [Phone] LIKE '015%'");
                         });
                 });
 
@@ -276,7 +325,9 @@ namespace GymManagementDAL.Data.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETDATE()");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -410,7 +461,7 @@ namespace GymManagementDAL.Data.Migrations
                             t.HasCheckConstraint("GymUser_EmailCheck", "Email LIKE '_%@_%._%'")
                                 .HasName("GymUser_EmailCheck1");
 
-                            t.HasCheckConstraint("GymUser_PhoneCheck", "Phone LIKE '01%' and Phone Not Like '%[^0-9]%'")
+                            t.HasCheckConstraint("GymUser_PhoneCheck", "[Phone] LIKE '010%' OR [Phone] LIKE '011%' OR [Phone] LIKE '012%' OR [Phone] LIKE '015%'")
                                 .HasName("GymUser_PhoneCheck1");
                         });
                 });
@@ -569,11 +620,13 @@ namespace GymManagementDAL.Data.Migrations
 
             modelBuilder.Entity("GymManagementDAL.Entities.HealthRecordEntity", b =>
                 {
-                    b.HasOne("GymManagementDAL.Entities.MemberEntity", null)
+                    b.HasOne("GymManagementDAL.Entities.MemberEntity", "Member")
                         .WithOne("HealthRecord")
-                        .HasForeignKey("GymManagementDAL.Entities.HealthRecordEntity", "Id")
+                        .HasForeignKey("GymManagementDAL.Entities.HealthRecordEntity", "MemberId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Member");
                 });
 
             modelBuilder.Entity("GymManagementDAL.Entities.MemberEntity", b =>
