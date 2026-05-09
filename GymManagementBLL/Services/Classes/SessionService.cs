@@ -7,37 +7,39 @@ using GymManagementDAL.Repositories.Interfaces;
 
 namespace GymManagementBLL.Services.Classes
 {
-	public class SessionService(IUnitOfWork unitOfWork, IMapper mapper) : ISessionService
-	{
-		private readonly IUnitOfWork _unitOfWork = unitOfWork;
-		private readonly IMapper _mapper = mapper;
+    public class SessionService(IUnitOfWork unitOfWork, IMapper mapper) : ISessionService
+    {
+        private readonly IUnitOfWork _unitOfWork = unitOfWork;
+        private readonly IMapper _mapper = mapper;
 
         public async Task<IReadOnlyList<SessionViewModel>?> GetAllSessionsAsync(CancellationToken ct = default)
         {
-			var sessions = (await _unitOfWork.SessionRepository.GetAllAsync(ct: ct)).OrderByDescending(X => X.StartDate); ;
+            var sessions = await _unitOfWork.SessionRepository.GetAllAsync(ct: ct);
 
-			if (sessions?.Any() ?? true) return null;
 
-			var MappedSessions = _mapper.Map<IReadOnlyList<SessionViewModel>>(sessions);
+            if (sessions?.Any() != true) return null;
 
-			foreach (var session in MappedSessions)
-			{
+            sessions = sessions.OrderByDescending(X => X.StartDate);
+            var MappedSessions = _mapper.Map<IReadOnlyList<SessionViewModel>>(sessions);
+
+            foreach (var session in MappedSessions)
+            {
                 session.AvailableSlots = session.Capacity - await _unitOfWork.SessionRepository.GetCountOfBookedSlotsAsync(session.Id, ct);
-			}
-			return MappedSessions;
+            }
+            return MappedSessions;
 
-		}
+        }
         public async Task<SessionViewModel?> GetSessionByIdAsync(int sessionId, CancellationToken ct = default)
         {
             var session = await _unitOfWork.SessionRepository.GetSessionWithTrainerAndCategoryAsync(sessionId, ct);
 
-			if (session == null)
-				return null;
+            if (session == null)
+                return null;
 
-			var MappedSession = _mapper.Map<SessionEntity, SessionViewModel>(session);
-			MappedSession.AvailableSlots = MappedSession.Capacity - ( await _unitOfWork.SessionRepository.GetCountOfBookedSlotsAsync(session.Id, ct));
-			return MappedSession;
-		}
+            var MappedSession = _mapper.Map<SessionEntity, SessionViewModel>(session);
+            MappedSession.AvailableSlots = MappedSession.Capacity - (await _unitOfWork.SessionRepository.GetCountOfBookedSlotsAsync(session.Id, ct));
+            return MappedSession;
+        }
         public async Task<UpdateSessionViewModel?> GetSessionToUpdateAsync(int sessionId, CancellationToken ct = default)
         {
             var session = await _unitOfWork.GetRepository<SessionEntity>().GetByIdAsync(sessionId, ct);
@@ -62,8 +64,8 @@ namespace GymManagementBLL.Services.Classes
 
             var entity = _mapper.Map<SessionEntity>(model);
             _unitOfWork.GetRepository<SessionEntity>().Add(entity);
-           var result =  await _unitOfWork.SaveChangesAsync(ct);
-            return result > 0 ? Result.Ok(): Result.Fail("Failed To Create Session");
+            var result = await _unitOfWork.SaveChangesAsync(ct);
+            return result > 0 ? Result.Ok() : Result.Fail("Failed To Create Session");
         }
         public async Task<Result> UpdateSessionAsync(int id, UpdateSessionViewModel model, CancellationToken ct = default)
         {
@@ -113,8 +115,8 @@ namespace GymManagementBLL.Services.Classes
         public async Task<IReadOnlyList<TrainerSelectViewModel>> GetTrainersForDropDownAsync(CancellationToken ct = default)
         {
             var trainers = await _unitOfWork.GetRepository<TrainerEntity>().GetAllAsync(ct: ct);
-			return _mapper.Map<IReadOnlyList<TrainerSelectViewModel>>(trainers);
-		}
+            return _mapper.Map<IReadOnlyList<TrainerSelectViewModel>>(trainers);
+        }
 
         public async Task<IReadOnlyList<CategorySelectViewModel>> GetCategoriesForDropDownAsync(CancellationToken ct = default)
         {
@@ -122,7 +124,7 @@ namespace GymManagementBLL.Services.Classes
             return _mapper.Map<List<CategorySelectViewModel>>(categories); ;
         }
 
-    
+
         #region Helper Methods
         private async Task<bool> IsSessionValidForUpdatingAsync(SessionEntity session, CancellationToken ct = default)
         {
@@ -130,6 +132,6 @@ namespace GymManagementBLL.Services.Classes
             var booked = await _unitOfWork.SessionRepository.GetCountOfBookedSlotsAsync(session.Id, ct);
             return booked == 0;
         }
-		#endregion
-	}
+        #endregion
+    }
 }

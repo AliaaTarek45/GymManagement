@@ -3,11 +3,11 @@
 @{
     ViewData["Title"] = "Create Membership";
 }
-@if (TempData["Error"] != null)
+@if (TempData["ErrorMessage"] != null)
 {
     <div id="Alert" class="alert alert-danger alert-dismissible fade show">
         <i class="bi bi-check-circle-fill me-2"></i>
-        @TempData["Error"]
+        @TempData["ErrorMessage"]
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 }

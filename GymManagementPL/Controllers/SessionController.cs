@@ -116,7 +116,7 @@ namespace GymManagementPL.Controllers
         private async Task PopulateDropdownsAsync(CancellationToken ct)
         {
             ViewBag.Trainers = new SelectList(await _sessionService.GetTrainersForDropDownAsync(ct), "Id", "Name");
-            ViewBag.Categories = new SelectList(await _sessionService.GetCategoriesForDropDownAsync(ct), "Id", "Name");
+            ViewBag.Categories = new SelectList(await _sessionService.GetCategoriesForDropDownAsync(ct), "Id", "CategoryName");
         }
     }
 }
