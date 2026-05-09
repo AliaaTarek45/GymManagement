@@ -15,16 +15,6 @@ public static class GymDataSeeding
     {
         try
         {
-            if (!await dbContext.Categories.AnyAsync(ct))
-            {
-                var categories = LoadDataFromJsonFile<CategoryEntity>("categories.json", seedFilesPath);
-                if (categories.Count > 0)
-                {
-                    dbContext.Categories.AddRange(categories);
-                    logger.LogInformation("Seeded {Count} categories.", categories.Count);
-                }
-            }
-
             if (!await dbContext.Plans.AnyAsync(ct))
             {
                 var plans = LoadDataFromJsonFile<PlanEntity>("plans.json", seedFilesPath);

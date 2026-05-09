@@ -6,7 +6,7 @@ namespace GymManagementBLL.ViewModels.SessionViewModels
 	{
 		[Required(ErrorMessage = "Description is required")]
 		[StringLength(500, MinimumLength = 10, ErrorMessage = "Description must be between 10 and 500 characters")]
-		public string Description { get; set; } = null!;
+		public string Description { get; set; } = default!;
 
 		[Required(ErrorMessage = "Capacity is required")]
 		[Range(0, 25, ErrorMessage = "Capacity must be between 0 and 25")]

@@ -1,11 +1,6 @@
 ﻿using GymManagementDAL.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GymManagementDAL.Data.Configurations
 {
@@ -13,8 +8,12 @@ namespace GymManagementDAL.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<HealthRecordEntity> builder)
         {
-            builder.Ignore(X => X.CreatedAt);
-            builder.Ignore(X => X.UpdatedAt);
+
+            builder.Property(x => x.BloodType)
+                .HasMaxLength(5);
+
+            builder.Property(x => x.Note)
+                   .HasMaxLength(500);
         }
     }
 }

@@ -4,8 +4,8 @@
 	{
 		public int MemberId { get; set; }
 		public int SessionId { get; set; }
-		public string MemberName { get; set; } = null!;
-		public string BookingDate { get; set; } = null!;
+		public string MemberName { get; set; } = default!;
+		public string BookingDate { get; set; } = default!;
 		public bool IsAttended { get; set; } = false;
 	}
 }
