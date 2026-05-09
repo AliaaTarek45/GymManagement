@@ -22,13 +22,10 @@ namespace GymManagementDAL.Repositories.Classes
         public void Delete(TEntity entity) => _set.Remove(entity);
 
 
-        public async Task<TEntity?> FirstOrDefaultAsync(Expression<Func<TEntity, bool>> predicate,
-                                                        Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,
-                                                        bool tracking = false,
+        public async Task<TEntity?> FirstOrDefaultAsync(Expression<Func<TEntity, bool>> predicate, bool tracking = false,
                                                         CancellationToken ct = default)
         {
             IQueryable<TEntity> query = tracking ? _set : _set.AsNoTracking();
-            if (include is not null) query = include(query);
             return await query.FirstOrDefaultAsync(predicate, ct);
         }
 
