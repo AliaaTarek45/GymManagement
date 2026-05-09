@@ -13,9 +13,9 @@ namespace GymManagementDAL.Entities
         public PlanEntity Plan { get; set; } = default!;
 
         [NotMapped]
-        public string Status => EndDate > DateTime.UtcNow ? "Active" : "Expired";
+        public string Status => EndDate > DateTime.Now ? "Active" : "Expired";
 
         [NotMapped]
-        public bool IsActive => EndDate > DateTime.UtcNow;
+        public bool IsActive => EndDate > DateTime.Now;
     }
 }
