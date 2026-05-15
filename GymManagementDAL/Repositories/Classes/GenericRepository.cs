@@ -39,7 +39,7 @@ namespace GymManagementDAL.Repositories.Classes
             if (predicate is not null) query = query.Where(predicate);
             return await query.ToListAsync(ct);
         }
-        public Task<TEntity?> GetByIdAsync(int id, CancellationToken ct = default) => _set.FindAsync([id], ct).AsTask();
+        public async Task<TEntity?> GetByIdAsync(int id, CancellationToken ct = default) => await _set.FindAsync([id], ct);
 
     }
 }
