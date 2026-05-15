@@ -3,6 +3,7 @@ using GymManagementBLL.Common;
 using GymManagementBLL.Services.Interfaces;
 using GymManagementBLL.ViewModels.SessionViewModels;
 using GymManagementDAL.Entities;
+using GymManagementDAL.Entities.Enums;
 using GymManagementDAL.Repositories.Interfaces;
 
 namespace GymManagementBLL.Services.Classes
@@ -50,50 +51,93 @@ namespace GymManagementBLL.Services.Classes
         public async Task<Result> CreateSessionAsync(CreateSessionViewModel model, CancellationToken ct = default)
         {
             if (model.EndDate <= model.StartDate)
-                return Result.Validation("End date must be after the start date.");
+                return Result.Validation("End date must be after start date.");
+
             if (model.StartDate <= DateTime.Now)
                 return Result.Validation("Start date must be in the future.");
 
-            var trainerExists = await _unitOfWork.GetRepository<TrainerEntity>()
-                .AnyAsync(t => t.Id == model.TrainerId, ct);
-            if (!trainerExists) return Result.NotFound("Trainer not found.");
+            var trainerRepo = _unitOfWork.GetRepository<TrainerEntity>();
 
-            var categoryExists = await _unitOfWork.GetRepository<CategoryEntity>()
-                .AnyAsync(c => c.Id == model.CategoryId, ct);
-            if (!categoryExists) return Result.NotFound("Category not found.");
+            var trainer = await trainerRepo.GetByIdAsync(model.TrainerId, ct);
 
-            var entity = _mapper.Map<SessionEntity>(model);
-            _unitOfWork.GetRepository<SessionEntity>().Add(entity);
-            var result = await _unitOfWork.SaveChangesAsync(ct);
-            return result > 0 ? Result.Ok() : Result.Fail("Failed To Create Session");
+            if (trainer is null)
+                return Result.NotFound("Trainer not found.");
+
+            var categoryRepo = _unitOfWork.GetRepository<CategoryEntity>();
+            var category = await categoryRepo.GetByIdAsync(model.CategoryId, ct);
+
+            if (category is null)
+                return Result.NotFound("Category not found.");
+
+            var isValidSpecialty = Enum.TryParse<Specialties>(category.CategoryName, true, out var categorySpecialty);
+
+            if (!isValidSpecialty || trainer.Specialties != categorySpecialty)
+                return Result.Validation("Cannot create this session for this trainer.");
+
+            var session = _mapper.Map<SessionEntity>(model);
+
+            var sessionRepo = _unitOfWork.GetRepository<SessionEntity>();
+            sessionRepo.Add(session);
+
+            var affectedRows = await _unitOfWork.SaveChangesAsync(ct);
+
+            return affectedRows > 0 ? Result.Ok() : Result.Fail("Failed to create session.");
         }
-        public async Task<Result> UpdateSessionAsync(int id, UpdateSessionViewModel model, CancellationToken ct = default)
+        public async Task<Result> UpdateSessionAsync(
+       int id,
+       UpdateSessionViewModel model,
+       CancellationToken ct = default)
         {
-            var repo = _unitOfWork.GetRepository<SessionEntity>();
-            var session = await repo.GetByIdAsync(id, ct);
-            if (session is null) return Result.NotFound("Session not found.");
+            var sessionRepo = _unitOfWork.GetRepository<SessionEntity>();
+            var session = await sessionRepo.GetByIdAsync(id, ct);
+
+            if (session is null)
+                return Result.NotFound("Session not found.");
 
             if (session.StartDate <= DateTime.Now)
                 return Result.Fail("Cannot edit a session that has already started.");
 
             var bookedCount = await _unitOfWork.SessionRepository.GetCountOfBookedSlotsAsync(id, ct);
+
             if (bookedCount > 0)
                 return Result.Fail("Cannot edit a session that already has bookings.");
 
             if (model.EndDate <= model.StartDate)
-                return Result.Validation("End date must be after the start date.");
-            if (model.StartDate <= DateTime.Now)
-                return Result.Validation("Start date must be in the future.");
+                return Result.Validation("End date must be after start date.");
 
-            var trainerExists = await _unitOfWork.GetRepository<TrainerEntity>()
-                .AnyAsync(t => t.Id == model.TrainerId, ct);
-            if (!trainerExists) return Result.NotFound("Trainer not found.");
+            if (model.StartDate <= DateTime.Now)
+                return Result.Validation(
+                    "Start date must be in the future.");
+
+            var trainerRepo = _unitOfWork.GetRepository<TrainerEntity>();
+
+            var trainer = await trainerRepo.GetByIdAsync(model.TrainerId, ct);
+
+            if (trainer is null)
+                return Result.NotFound("Trainer not found.");
+
+            var categoryRepo = _unitOfWork.GetRepository<CategoryEntity>();
+            var category = await categoryRepo.GetByIdAsync(session.CategoryId, ct);
+
+            if (category is null)
+                return Result.NotFound("Category not found.");
+
+            var isValidSpecialty = Enum.TryParse<Specialties>(category.CategoryName, true, out var categorySpecialty);
+
+            if (!isValidSpecialty || trainer.Specialties != categorySpecialty)
+            {
+                return Result.Validation("This trainer does not match the session category.");
+            }
 
             _mapper.Map(model, session);
+
             session.UpdatedAt = DateTime.Now;
-            repo.Update(session);
-            var result = await _unitOfWork.SaveChangesAsync(ct);
-            return result > 0 ? Result.Ok() : Result.Fail("Failed To Update Session");
+
+            sessionRepo.Update(session);
+
+            var affectedRows = await _unitOfWork.SaveChangesAsync(ct);
+
+            return affectedRows > 0 ? Result.Ok() : Result.Fail("Failed to update session.");
         }
         public async Task<Result> RemoveSessionAsync(int sessionId, CancellationToken ct = default)
         {
