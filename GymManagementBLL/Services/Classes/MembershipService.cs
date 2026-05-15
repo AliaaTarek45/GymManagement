@@ -49,23 +49,23 @@ namespace GymManagementBLL.Services.Classes
             return result > 0 ? Result.Ok() : Result.Fail("Failed To Delete Membership");
         }
 
-        public async Task<IReadOnlyList<MemberShipViewModel>> GetAllMembershipsAsync(CancellationToken ct = default)
+        public async Task<IEnumerable<MemberShipViewModel>> GetAllMembershipsAsync(CancellationToken ct = default)
         {
             var memberships = await unitOfWork.MembershipRepository
                 .GetAllMembershipsWithMemberAndPlanAsync(m => m.EndDate > DateTime.Now, ct);
-            return mapper.Map<IReadOnlyList<MemberShipViewModel>>(memberships);
+            return mapper.Map<IEnumerable<MemberShipViewModel>>(memberships);
         }
 
-        public async Task<IReadOnlyList<PlanSelectListViewModel>> GetPlansForDropDownAsync(CancellationToken ct = default)
+        public async Task<IEnumerable<PlanSelectListViewModel>> GetPlansForDropDownAsync(CancellationToken ct = default)
         {
             var plans = await unitOfWork.GetRepository<PlanEntity>().GetAllAsync(p => p.IsActive, ct: ct);
-            return mapper.Map<IReadOnlyList<PlanSelectListViewModel>>(plans);
+            return mapper.Map<IEnumerable<PlanSelectListViewModel>>(plans);
         }
 
-        public async Task<IReadOnlyList<MemberSelectListViewModel>> GetMembersForDropDownAsync(CancellationToken ct = default)
+        public async Task<IEnumerable<MemberSelectListViewModel>> GetMembersForDropDownAsync(CancellationToken ct = default)
         {
             var members = await unitOfWork.GetRepository<MemberEntity>().GetAllAsync(ct: ct);
-            return mapper.Map<IReadOnlyList<MemberSelectListViewModel>>(members);
+            return mapper.Map<IEnumerable<MemberSelectListViewModel>>(members);
         }
 	}
 }

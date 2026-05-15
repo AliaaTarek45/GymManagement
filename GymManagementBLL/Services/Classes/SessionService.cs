@@ -12,7 +12,7 @@ namespace GymManagementBLL.Services.Classes
         private readonly IUnitOfWork _unitOfWork = unitOfWork;
         private readonly IMapper _mapper = mapper;
 
-        public async Task<IReadOnlyList<SessionViewModel>?> GetAllSessionsAsync(CancellationToken ct = default)
+        public async Task<IEnumerable<SessionViewModel>?> GetAllSessionsAsync(CancellationToken ct = default)
         {
             var sessions = await _unitOfWork.SessionRepository.GetAllAsync(ct: ct);
 
@@ -20,7 +20,7 @@ namespace GymManagementBLL.Services.Classes
             if (sessions?.Any() != true) return null;
 
             sessions = sessions.OrderByDescending(X => X.StartDate);
-            var MappedSessions = _mapper.Map<IReadOnlyList<SessionViewModel>>(sessions);
+            var MappedSessions = _mapper.Map<IEnumerable<SessionViewModel>>(sessions);
 
             foreach (var session in MappedSessions)
             {
@@ -112,13 +112,13 @@ namespace GymManagementBLL.Services.Classes
             await _unitOfWork.SaveChangesAsync(ct);
             return Result.Ok();
         }
-        public async Task<IReadOnlyList<TrainerSelectViewModel>> GetTrainersForDropDownAsync(CancellationToken ct = default)
+        public async Task<IEnumerable<TrainerSelectViewModel>> GetTrainersForDropDownAsync(CancellationToken ct = default)
         {
             var trainers = await _unitOfWork.GetRepository<TrainerEntity>().GetAllAsync(ct: ct);
-            return _mapper.Map<IReadOnlyList<TrainerSelectViewModel>>(trainers);
+            return _mapper.Map<IEnumerable<TrainerSelectViewModel>>(trainers);
         }
 
-        public async Task<IReadOnlyList<CategorySelectViewModel>> GetCategoriesForDropDownAsync(CancellationToken ct = default)
+        public async Task<IEnumerable<CategorySelectViewModel>> GetCategoriesForDropDownAsync(CancellationToken ct = default)
         {
             var categories = await _unitOfWork.GetRepository<CategoryEntity>().GetAllAsync(ct: ct);
             return _mapper.Map<List<CategorySelectViewModel>>(categories); ;

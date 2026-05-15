@@ -45,7 +45,7 @@ namespace GymManagementBLL.Services.Classes
             var result = await _unitOfWork.SaveChangesAsync(ct);
             return result > 0 ? Result.Ok() : Result.Fail("Failed To Create Member");
         }
-        public async Task<IReadOnlyList<MemberViewModel>> GetAllMembersAsync(CancellationToken ct = default)
+        public async Task<IEnumerable<MemberViewModel>> GetAllMembersAsync(CancellationToken ct = default)
         {
             var members = await _unitOfWork.GetRepository<MemberEntity>().GetAllAsync(ct: ct);
             return _mapper.Map<List<MemberViewModel>>(members);

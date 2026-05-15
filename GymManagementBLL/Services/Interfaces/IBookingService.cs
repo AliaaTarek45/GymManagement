@@ -7,10 +7,10 @@ namespace GymManagementBLL.Services.Interfaces
 {
 	public interface IBookingService
 	{
-        Task<IReadOnlyList<SessionViewModel>> GetAllSessionsAsync(CancellationToken ct = default);
-        Task<IReadOnlyList<MemberForSessionViewModel>> GetMembersForUpcomingBySessionIdAsync(int sessionId, CancellationToken ct = default);
-        Task<IReadOnlyList<MemberForSessionViewModel>> GetMembersForOngoingBySessionIdAsync(int sessionId, CancellationToken ct = default);
-        Task<IReadOnlyList<MemberSelectListViewModel>> GetMembersForDropDownAsync(int sessionId, CancellationToken ct = default);
+        Task<IEnumerable<SessionViewModel>> GetAllSessionsAsync(CancellationToken ct = default);
+        Task<IEnumerable<MemberForSessionViewModel>> GetMembersForUpcomingBySessionIdAsync(int sessionId, CancellationToken ct = default);
+        Task<IEnumerable<MemberForSessionViewModel>> GetMembersForOngoingBySessionIdAsync(int sessionId, CancellationToken ct = default);
+        Task<IEnumerable<MemberSelectListViewModel>> GetMembersForDropDownAsync(int sessionId, CancellationToken ct = default);
 
         Task<Result> CreateNewBookingAsync(CreateBookingViewModel model, CancellationToken ct = default);
         Task<Result> CancelBookingAsync(int memberId, int sessionId, CancellationToken ct = default);

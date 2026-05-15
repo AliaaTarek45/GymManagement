@@ -84,19 +84,19 @@ namespace GymManagementBLL.Services.Classes
           var result =  await _unitOfWork.SaveChangesAsync(ct);
             return result > 0 ? Result.Ok() : Result.Fail("Failed To Book Session");
         }
-        public async Task<IReadOnlyList<SessionViewModel>> GetAllSessionsAsync(CancellationToken ct = default)
+        public async Task<IEnumerable<SessionViewModel>> GetAllSessionsAsync(CancellationToken ct = default)
         {
 
             var bookings =  await _unitOfWork.SessionRepository.GetAllSessionsWithTrainerAndCategoryAsync(x => x.EndDate >= DateTime.Now);
             if (bookings.Count == 0) return null!;
-            var MappedSession = _mapper.Map<IReadOnlyList<SessionViewModel>>(bookings);
+            var MappedSession = _mapper.Map<IEnumerable<SessionViewModel>>(bookings);
             foreach (var item in MappedSession)
             {
                 item.AvailableSlots =  item.Capacity - await _unitOfWork.SessionRepository.GetCountOfBookedSlotsAsync(item.Id); 
             }
             return MappedSession;
         }
-        public async Task<IReadOnlyList<MemberForSessionViewModel>> GetMembersForUpcomingBySessionIdAsync(
+        public async Task<IEnumerable<MemberForSessionViewModel>> GetMembersForUpcomingBySessionIdAsync(
          int sessionId, CancellationToken ct = default)
         {
             var bookings = await _unitOfWork.BookingRepository.GetBySessionIdAsync(sessionId, ct);
@@ -108,7 +108,7 @@ namespace GymManagementBLL.Services.Classes
                 BookingDate = b.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
             }).ToList();
         }
-        public async Task<IReadOnlyList<MemberForSessionViewModel>> GetMembersForOngoingBySessionIdAsync(
+        public async Task<IEnumerable<MemberForSessionViewModel>> GetMembersForOngoingBySessionIdAsync(
          int sessionId, CancellationToken ct = default)
         {
             var bookings = await _unitOfWork.BookingRepository.GetBySessionIdAsync(sessionId, ct);
@@ -121,7 +121,7 @@ namespace GymManagementBLL.Services.Classes
                 IsAttended = b.IsAttended,
             }).ToList();
         }
-        public async Task<IReadOnlyList<MemberSelectListViewModel>> GetMembersForDropDownAsync(int sessionId, CancellationToken ct = default)
+        public async Task<IEnumerable<MemberSelectListViewModel>> GetMembersForDropDownAsync(int sessionId, CancellationToken ct = default)
         {
             var booking = await _unitOfWork.BookingRepository
                                              .GetAllAsync(x => x.SessionId == sessionId);
@@ -131,7 +131,7 @@ namespace GymManagementBLL.Services.Classes
             var availableMembers =  await _unitOfWork.GetRepository<MemberEntity>()
                                               .GetAllAsync(x => !bookedMemberIds.Contains(x.Id));
 
-            return _mapper.Map<IReadOnlyList<MemberSelectListViewModel>>(availableMembers);
+            return _mapper.Map<IEnumerable<MemberSelectListViewModel>>(availableMembers);
         }
     }
 }

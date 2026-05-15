@@ -18,10 +18,10 @@ namespace GymManagementBLL.Services.Classes
 			_mapper = mapper;
 		}
 
-        public async Task<IReadOnlyList<PlanViewModel>> GetAllPlansAsync(CancellationToken ct = default)
+        public async Task<IEnumerable<PlanViewModel>> GetAllPlansAsync(CancellationToken ct = default)
         {
             var plans = await _unitOfWork.GetRepository<PlanEntity>().GetAllAsync(ct: ct);
-            return _mapper.Map<IReadOnlyList<PlanViewModel>>(plans);
+            return _mapper.Map<IEnumerable<PlanViewModel>>(plans);
         }
         public async Task<PlanViewModel?> GetPlanByIdAsync(int planId, CancellationToken ct = default)
         {
