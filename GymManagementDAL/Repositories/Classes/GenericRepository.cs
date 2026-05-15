@@ -2,19 +2,18 @@
 using GymManagementDAL.Entities;
 using GymManagementDAL.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query;
 using System.Linq.Expressions;
 
 namespace GymManagementDAL.Repositories.Classes
 {
-	public class GenericRepository<TEntity> : IGenericRepository<TEntity> where TEntity : BaseEntity
-	{
-		private readonly GymDbContext _dbContext;
+    public class GenericRepository<TEntity> : IGenericRepository<TEntity> where TEntity : BaseEntity
+    {
+        private readonly GymDbContext _dbContext;
         private readonly DbSet<TEntity> _set;
 
         public GenericRepository(GymDbContext dbContext)
-		{
-			_dbContext = dbContext;
+        {
+            _dbContext = dbContext;
             _set = dbContext.Set<TEntity>();
         }
         public void Add(TEntity entity) => _set.Add(entity);
@@ -34,10 +33,9 @@ namespace GymManagementDAL.Repositories.Classes
 
         public Task<int> CountAsync(Expression<Func<TEntity, bool>>? predicate = null, CancellationToken ct = default)
             => predicate is null ? _set.AsNoTracking().CountAsync(ct) : _set.AsNoTracking().CountAsync(predicate, ct);
-        public async Task<IEnumerable<TEntity>> GetAllAsync(Expression<Func<TEntity, bool>>? predicate = null,Func<IQueryable<TEntity>, IIncludableQueryable<TEntity, object>>? include = null,bool tracking = false,CancellationToken ct = default)
+        public async Task<IEnumerable<TEntity>> GetAllAsync(Expression<Func<TEntity, bool>>? predicate = null, bool tracking = false, CancellationToken ct = default)
         {
-            IQueryable <TEntity> query = tracking ? _set : _set.AsNoTracking();
-            if (include is not null) query = include(query);
+            IQueryable<TEntity> query = tracking ? _set : _set.AsNoTracking();
             if (predicate is not null) query = query.Where(predicate);
             return await query.ToListAsync(ct);
         }
