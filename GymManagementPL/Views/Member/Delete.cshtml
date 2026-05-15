@@ -13,8 +13,7 @@
                     <strong>Warning!</strong> This action cannot be undone. All member data will be permanently deleted.
                 </div>
 
-                <form asp-action="DeleteConfirmed" method="post" class="mt-4">
-                    <input type="hidden" readonly name="id" value="@ViewBag.MemberId" />
+                <form asp-action="DeleteConfirmed" method="post" asp-route-id="@Context.Request.RouteValues["id"]" class="mt-4">
                     <div class="buttons d-flex justify-content-between gap-3">
                         <a asp-controller="Member" asp-action="Index" class="btn-outline flex-fill">NO</a>
                         <button type="submit" class="btn-fill flex-fill">Yes</button>

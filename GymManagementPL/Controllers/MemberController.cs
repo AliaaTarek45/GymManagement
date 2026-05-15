@@ -6,18 +6,18 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GymManagementPL.Controllers
 {
-	[Authorize(Roles = "SuperAdmin")]
-	public class MemberController : Controller
-	{
-		private readonly IMemberService _memberService;
+    [Authorize(Roles = "SuperAdmin")]
+    public class MemberController : Controller
+    {
+        private readonly IMemberService _memberService;
         private readonly IAttachmentService _attachmentService;
 
-        public MemberController(IMemberService memberService , IAttachmentService attachmentService)
-		{
-			_memberService = memberService;
+        public MemberController(IMemberService memberService, IAttachmentService attachmentService)
+        {
+            _memberService = memberService;
             _attachmentService = attachmentService;
         }
-		#region Get All Members
+        #region Get All Members
         public async Task<IActionResult> Index(CancellationToken ct)
            => View(await _memberService.GetAllMembersAsync(ct));
         #endregion
@@ -49,7 +49,7 @@ namespace GymManagementPL.Controllers
             if (member is null || string.IsNullOrEmpty(member.Photo))
                 return NotFound();
 
-           
+
             var result = _attachmentService.GetFile(member.Photo, "MembersPictures");
             if (result is null) return NotFound();
 
@@ -122,7 +122,6 @@ namespace GymManagementPL.Controllers
                 TempData["ErrorMessage"] = "Member not found.";
                 return RedirectToAction(nameof(Index));
             }
-            ViewBag.MemberId = id;
             return View();
         }
 

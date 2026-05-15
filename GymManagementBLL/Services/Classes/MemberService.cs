@@ -58,8 +58,8 @@ namespace GymManagementBLL.Services.Classes
 
             var viewModel = _mapper.Map<MemberViewModel>(member);
 
-            var activeMembership = (await _unitOfWork.GetRepository<MembershipEntity>().GetAllAsync(MP => MP.MemberId == memberId
-                 && MP.EndDate >= DateTime.Now, ct: ct)).FirstOrDefault();
+            var activeMembership = (await _unitOfWork.GetRepository<MembershipEntity>().FirstOrDefaultAsync(MP => MP.MemberId == memberId
+                 && MP.EndDate >= DateTime.Now, ct: ct));
 
             if (activeMembership is not null)
             {
@@ -93,11 +93,6 @@ namespace GymManagementBLL.Services.Classes
 
             if (hasFutureSessions)
                 return Result.Fail("Cannot delete a member with upcoming sessions.");
-
-            var memberships = await _unitOfWork.MembershipRepository
-                .GetAllAsync(m => m.MemberId == memberId, tracking: true, ct: ct);
-            foreach (var ms in memberships)
-                _unitOfWork.MembershipRepository.Delete(ms);
 
             memberRepo.Delete(member);
             var result = await _unitOfWork.SaveChangesAsync(ct);
