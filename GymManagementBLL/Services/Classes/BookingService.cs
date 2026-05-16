@@ -6,22 +6,18 @@ using GymManagementBLL.ViewModels.MembershipViewModels;
 using GymManagementBLL.ViewModels.SessionViewModels;
 using GymManagementDAL.Entities;
 using GymManagementDAL.Repositories.Interfaces;
-using Microsoft.Extensions.Logging;
 
 namespace GymManagementBLL.Services.Classes
 {
     public class BookingService : IBookingService
-	{
-		private readonly IUnitOfWork _unitOfWork;
-		private readonly IMapper _mapper;
-        private readonly ILogger<BookingService> _logger;
+    {
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
-        public BookingService(IUnitOfWork unitOfWork, IMapper mapper ,ILogger<BookingService> logger)
+        public BookingService(IUnitOfWork unitOfWork, IMapper mapper)
         {
-			_unitOfWork = unitOfWork;
-			_mapper = mapper;
-            _logger = logger;
-
+            _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
         public async Task<Result> CancelBookingAsync(int memberId, int sessionId, CancellationToken ct = default)
         {
@@ -35,20 +31,20 @@ namespace GymManagementBLL.Services.Classes
             if (booking is null) return Result.NotFound("Booking not found.");
 
             _unitOfWork.BookingRepository.Delete(booking);
-          var result =   await _unitOfWork.SaveChangesAsync(ct);
-            return  result > 0 ? Result.Ok() : Result.Fail("Booking Cancel Failed");
+            var result = await _unitOfWork.SaveChangesAsync(ct);
+            return result > 0 ? Result.Ok() : Result.Fail("Booking Cancel Failed");
         }
         public async Task<Result> MarkAttendedAsync(int memberId, int sessionId, CancellationToken ct = default)
         {
-            var booking = await _unitOfWork.BookingRepository.FirstOrDefaultAsync( b => b.MemberId == memberId && b.SessionId == sessionId, tracking: true, ct: ct);
+            var booking = await _unitOfWork.BookingRepository.FirstOrDefaultAsync(b => b.MemberId == memberId && b.SessionId == sessionId, tracking: true, ct: ct);
             if (booking is null) return Result.NotFound("Booking not found.");
 
             booking.IsAttended = true;
-			booking.UpdatedAt = DateTime.Now;
+            booking.UpdatedAt = DateTime.Now;
             _unitOfWork.BookingRepository.Update(booking);
 
-           var result =  await _unitOfWork.SaveChangesAsync(ct);
-            return result > 0 ? Result.Ok() : Result.Fail("Failed to Mark As Attended") ;
+            var result = await _unitOfWork.SaveChangesAsync(ct);
+            return result > 0 ? Result.Ok() : Result.Fail("Failed to Mark As Attended");
         }
         public async Task<Result> CreateNewBookingAsync(CreateBookingViewModel model, CancellationToken ct = default)
         {
@@ -81,18 +77,18 @@ namespace GymManagementBLL.Services.Classes
                 CreatedAt = DateTime.Now,
             });
 
-          var result =  await _unitOfWork.SaveChangesAsync(ct);
+            var result = await _unitOfWork.SaveChangesAsync(ct);
             return result > 0 ? Result.Ok() : Result.Fail("Failed To Book Session");
         }
         public async Task<IEnumerable<SessionViewModel>> GetAllSessionsAsync(CancellationToken ct = default)
         {
 
-            var bookings =  await _unitOfWork.SessionRepository.GetAllSessionsWithTrainerAndCategoryAsync(x => x.EndDate >= DateTime.Now);
-            if (bookings.Count == 0) return null!;
+            var bookings = await _unitOfWork.SessionRepository.GetAllSessionsWithTrainerAndCategoryAsync(x => x.EndDate >= DateTime.Now);
+            if (!bookings.Any()) return null!;
             var MappedSession = _mapper.Map<IEnumerable<SessionViewModel>>(bookings);
             foreach (var item in MappedSession)
             {
-                item.AvailableSlots =  item.Capacity - await _unitOfWork.SessionRepository.GetCountOfBookedSlotsAsync(item.Id); 
+                item.AvailableSlots = item.Capacity - await _unitOfWork.SessionRepository.GetCountOfBookedSlotsAsync(item.Id);
             }
             return MappedSession;
         }
@@ -128,7 +124,7 @@ namespace GymManagementBLL.Services.Classes
 
             var bookedMemberIds = booking.Select(x => x.MemberId);
 
-            var availableMembers =  await _unitOfWork.GetRepository<MemberEntity>()
+            var availableMembers = await _unitOfWork.GetRepository<MemberEntity>()
                                               .GetAllAsync(x => !bookedMemberIds.Contains(x.Id));
 
             return _mapper.Map<IEnumerable<MemberSelectListViewModel>>(availableMembers);

@@ -1,9 +1,7 @@
 ﻿using GymManagementBLL.Services.Interfaces;
 using GymManagementBLL.ViewModels.TrainerViewModels;
-using GymManagementDAL.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Data;
 
 namespace GymManagementPL.Controllers
 {
@@ -86,7 +84,6 @@ namespace GymManagementPL.Controllers
                 TempData["ErrorMessage"] = "Trainer not found.";
                 return RedirectToAction(nameof(Index));
             }
-            ViewBag.TrainerId = id;
             return View();
         }
 

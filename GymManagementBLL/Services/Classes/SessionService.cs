@@ -15,7 +15,7 @@ namespace GymManagementBLL.Services.Classes
 
         public async Task<IEnumerable<SessionViewModel>?> GetAllSessionsAsync(CancellationToken ct = default)
         {
-            var sessions = await _unitOfWork.SessionRepository.GetAllAsync(ct: ct);
+            var sessions = await _unitOfWork.SessionRepository.GetAllSessionsWithTrainerAndCategoryAsync(ct: ct);
 
 
             if (sessions?.Any() != true) return null;
@@ -153,8 +153,9 @@ namespace GymManagementBLL.Services.Classes
                 return Result.Fail("Cannot delete a session that has bookings.");
 
             repo.Delete(session);
-            await _unitOfWork.SaveChangesAsync(ct);
-            return Result.Ok();
+            var affectedRows = await _unitOfWork.SaveChangesAsync(ct);
+
+            return affectedRows > 0 ? Result.Ok() : Result.Fail("Failed to Delete session.");
         }
         public async Task<IEnumerable<TrainerSelectViewModel>> GetTrainersForDropDownAsync(CancellationToken ct = default)
         {

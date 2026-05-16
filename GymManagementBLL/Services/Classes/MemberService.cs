@@ -5,7 +5,6 @@ using GymManagementBLL.Services.Interfaces;
 using GymManagementBLL.ViewModels.MemberViewModel;
 using GymManagementDAL.Entities;
 using GymManagementDAL.Repositories.Interfaces;
-using Microsoft.Extensions.Logging;
 
 namespace GymManagementBLL.Services.Classes
 {
@@ -14,15 +13,13 @@ namespace GymManagementBLL.Services.Classes
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly IAttachmentService _attachmentService;
-        private readonly ILogger<MemberService> _logger;
 
-        public MemberService(IUnitOfWork unitOfWork, IMapper mapper, IAttachmentService attachmentService, ILogger<MemberService> logger)
+        public MemberService(IUnitOfWork unitOfWork, IMapper mapper, IAttachmentService attachmentService)
 
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _attachmentService = attachmentService;
-            _logger = logger;
 
         }
         public async Task<Result> CreateMemberAsync(CreateMemberViewModel model, CancellationToken ct = default)

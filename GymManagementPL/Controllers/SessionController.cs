@@ -100,7 +100,6 @@ namespace GymManagementPL.Controllers
                 TempData["ErrorMessage"] = "Session not found.";
                 return RedirectToAction(nameof(Index));
             }
-            ViewBag.SessionId = id;
             return View(session);
         }
 

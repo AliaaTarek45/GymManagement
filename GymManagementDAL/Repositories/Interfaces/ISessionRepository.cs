@@ -3,10 +3,10 @@ using System.Linq.Expressions;
 
 namespace GymManagementDAL.Repositories.Interfaces
 {
-	public interface ISessionRepository : IGenericRepository<SessionEntity>
-	{
+    public interface ISessionRepository : IGenericRepository<SessionEntity>
+    {
 
-        Task<List<SessionEntity>> GetAllSessionsWithTrainerAndCategoryAsync(
+        Task<IEnumerable<SessionEntity>> GetAllSessionsWithTrainerAndCategoryAsync(
        Expression<Func<SessionEntity, bool>>? predicate = null,
        CancellationToken ct = default);
 
