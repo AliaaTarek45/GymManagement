@@ -5,33 +5,34 @@ using GymManagementDAL.Repositories.Interfaces;
 
 namespace GymManagementBLL.Services.Classes
 {
-	public class AnalyticsService : IAnalyticsService
-	{
-		private readonly IUnitOfWork _unitOfWork;
+    public class AnalyticsService : IAnalyticsService
+    {
+        private readonly IUnitOfWork _unitOfWork;
 
-		public AnalyticsService(IUnitOfWork unitOfWork)
-		{
-			_unitOfWork = unitOfWork;
-		}
+        public AnalyticsService(IUnitOfWork unitOfWork)
+        {
+            _unitOfWork = unitOfWork;
+        }
 
         public async Task<AnalyticsViewModel> GetAnalyticsDataAsync(CancellationToken ct = default)
         {
-            var Sessions = await _unitOfWork.GetRepository<SessionEntity>().GetAllAsync();
-        
-
+            var now = DateTime.Now;
+            var upcomingSessions = await _unitOfWork.GetRepository<SessionEntity>().CountAsync(s => s.StartDate > now);
+            var ongoingSessions = await _unitOfWork.GetRepository<SessionEntity>().CountAsync(X => X.StartDate <= now && X.EndDate >= now);
+            var completedSessions = await _unitOfWork.GetRepository<SessionEntity>().CountAsync(X => X.EndDate < now);
             var totalMembers = await _unitOfWork.GetRepository<MemberEntity>().CountAsync(ct: ct);
             var totalTrainers = await _unitOfWork.GetRepository<TrainerEntity>().CountAsync(ct: ct);
-            var activeMembers = await _unitOfWork.MembershipRepository.CountAsync(m => m.EndDate > DateTime.Now, ct);
+            var activeMembers = await _unitOfWork.GetRepository<MembershipEntity>().CountAsync(m => m.EndDate > now, ct);
 
             return new AnalyticsViewModel()
-			{
+            {
                 TotalMembers = totalMembers,
                 TotalTrainers = totalTrainers,
                 ActiveMembers = activeMembers,
-				UpcomingSessions = Sessions.Count(X => X.StartDate > DateTime.Now),
-				OngoingSessions = Sessions.Count(X => X.StartDate <= DateTime.Now && X.EndDate >= DateTime.Now),
-				CompletedSessions = Sessions.Count(X => X.EndDate < DateTime.Now)
-			};
-		}
-	}
+                UpcomingSessions = upcomingSessions,
+                OngoingSessions = ongoingSessions,
+                CompletedSessions = completedSessions
+            };
+        }
+    }
 }
