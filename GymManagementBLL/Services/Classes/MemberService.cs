@@ -31,7 +31,7 @@ namespace GymManagementBLL.Services.Classes
             if (await repo.AnyAsync(m => m.Phone == model.Phone, ct))
                 return Result.Fail("A member with this phone number already exists.");
 
-            var photo = await _attachmentService.UploadAsync(model.PhotoFile, "MembersPictures", ct);
+            var photo = await _attachmentService.UploadAsync(model.PhotoFile.OpenReadStream(), model.PhotoFile.FileName, "MembersPictures", ct);
             if (string.IsNullOrEmpty(photo))
                 return Result.Validation("Profile photo upload failed (check file type and size).");
 
