@@ -35,12 +35,21 @@ namespace GymManagementBLL.Services.Classes
             if (string.IsNullOrEmpty(photo))
                 return Result.Validation("Profile photo upload failed (check file type and size).");
 
-            var entity = _mapper.Map<MemberEntity>(model);
-            entity.Photo = photo;
+            var member = _mapper.Map<MemberEntity>(model);
+            member.Photo = photo;
 
-            repo.Add(entity);
+            repo.Add(member);
             var result = await _unitOfWork.SaveChangesAsync(ct);
-            return result > 0 ? Result.Ok() : Result.Fail("Failed To Create Member");
+            if (result == 0)
+            {
+                if (!string.IsNullOrEmpty(member.Photo))
+                    _attachmentService.Delete(member.Photo, "members");
+
+                return Result.Fail("Failed To Create Member");
+            }
+            else
+
+                return Result.Ok();
         }
         public async Task<IEnumerable<MemberViewModel>> GetAllMembersAsync(CancellationToken ct = default)
         {
