@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace GymManagementBLL.Services.AttachmentService
@@ -76,43 +75,6 @@ namespace GymManagementBLL.Services.AttachmentService
                 return null;
             }
         }
-        public async Task<string?> UploadAsync(IFormFile file, string folderName, CancellationToken ct = default)
-        {
-
-            if (file is null || file.Length == 0) return null;
-            if (file.Length > _maxFileSize)
-            {
-                _logger.LogWarning("Rejected upload: file too large ({Size} bytes).", file.Length);
-                return null;
-            }
-
-            var extension = Path.GetExtension(file.FileName);
-            if (string.IsNullOrEmpty(extension) || !_allowedExtensions.Contains(extension))
-            {
-                _logger.LogWarning("Rejected upload: extension {Ext} not allowed.", extension);
-                return null;
-            }
-
-
-            var uploadsFolder = Path.Combine(_env.ContentRootPath, folderName);
-            Directory.CreateDirectory(uploadsFolder);
-
-
-            var FileName = $"{Guid.NewGuid()}{extension}";
-            var filePath = Path.Combine(uploadsFolder, FileName);
-            try
-            {
-                await using var fs = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-                await file.CopyToAsync(fs, ct);
-                return FileName;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed to upload file: {ex}");
-                return null;
-            }
-        }
-
         public (Stream Stream, string ContentType)? GetFile(string fileName, string folderName)
         {
             if (string.IsNullOrEmpty(fileName) || string.IsNullOrEmpty(folderName)) return null;
