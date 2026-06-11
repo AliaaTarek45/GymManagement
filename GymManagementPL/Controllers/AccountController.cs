@@ -1,5 +1,4 @@
-﻿using GymManagementBLL.Services.Interfaces;
-using GymManagementBLL.ViewModels.AccountViewModels;
+﻿using GymManagementBLL.ViewModels.AccountViewModels;
 using GymManagementDAL.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -7,29 +6,29 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GymManagementPL.Controllers
 {
-	public class AccountController(
+    public class AccountController(
             SignInManager<ApplicationUser> signInManager,
             UserManager<ApplicationUser> userManager,
             ILogger<AccountController> logger) : Controller
-	{
+    {
         private readonly SignInManager<ApplicationUser> _signInManager = signInManager;
         private readonly UserManager<ApplicationUser> _userManager = userManager;
         private readonly ILogger<AccountController> _logger = logger;
 
         #region Login
         public IActionResult Login()
-		{
-			return View();
-		}
+        {
+            return View();
+        }
         [HttpPost]
-        public async Task<IActionResult> Login(LoginViewModel model , CancellationToken ct = default)
+        public async Task<IActionResult> Login(LoginViewModel model, CancellationToken ct = default)
         {
             if (!ModelState.IsValid) return View(model);
 
             var user = await _userManager.FindByEmailAsync(model.Email);
             if (user is null || string.IsNullOrEmpty(user.UserName))
             {
-                ModelState.AddModelError(string.Empty, "Invalid email or password.");
+                ModelState.AddModelError("InvalidLogin", "Invalid email or password.");
                 return View(model);
             }
 
@@ -44,22 +43,22 @@ namespace GymManagementPL.Controllers
             if (result.IsLockedOut)
             {
                 _logger.LogWarning("User {UserId} is locked out.", user.Id);
-                ModelState.AddModelError(string.Empty, "This account is temporarily locked. Try again later.");
+                ModelState.AddModelError("InvalidLogin", "This account is temporarily locked. Try again later.");
             }
             else if (result.IsNotAllowed)
             {
-                ModelState.AddModelError(string.Empty, "Sign-in is not allowed for this account.");
+                ModelState.AddModelError("InvalidLogin", "Sign-in is not allowed for this account.");
             }
             else
             {
-                ModelState.AddModelError(string.Empty, "Invalid email or password.");
+                ModelState.AddModelError("InvalidLogin", "Invalid email or password.");
             }
             return View(model);
         }
 
-		#endregion
+        #endregion
 
-		#region Sign Out
+        #region Sign Out
 
         [HttpPost]
         [Authorize]
